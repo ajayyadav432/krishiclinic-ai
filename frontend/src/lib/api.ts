@@ -269,4 +269,63 @@ export async function uploadFollowup(
   return handleResponse<Prediction>(res);
 }
 
+export async function getOutbreakSummary(): Promise<{
+  total_active_clusters: number;
+  high_risk_alerts: number;
+  monitored_regions: number;
+  clusters: any[];
+}> {
+  const res = await fetch(`${API_URL}/api/v1/outbreaks/summary`, {
+    headers: getHeaders(),
+  });
+  return handleResponse(res);
+}
+
+export async function subscribeOutbreakAlerts(payload: {
+  farmer_name: string;
+  phone_number: string;
+  district: string;
+  crops: string[];
+  alert_radius_km?: number;
+}): Promise<{ status: string; message: string; subscription_id: string }> {
+  const res = await fetch(`${API_URL}/api/v1/outbreaks/subscribe`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getHeaders(),
+    },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
+// ── Medicine / Treatment Recommendation API ───────────────────────────────────
+
+export async function getMedicineCrops(): Promise<{ crops: string[] }> {
+  const res = await fetch(`${API_URL}/api/v1/medicine/crops`, {
+    headers: getHeaders(),
+  });
+  return handleResponse(res);
+}
+
+export async function getMedicineDiseases(crop: string): Promise<{ crop: string; diseases: string[] }> {
+  const res = await fetch(
+    `${API_URL}/api/v1/medicine/diseases?crop=${encodeURIComponent(crop)}`,
+    { headers: getHeaders() }
+  );
+  return handleResponse(res);
+}
+
+export async function getMedicineTreatment(
+  crop: string,
+  disease: string,
+  stage?: string
+): Promise<any> {
+  let url = `${API_URL}/api/v1/medicine/treatment?crop=${encodeURIComponent(crop)}&disease=${encodeURIComponent(disease)}`;
+  if (stage) url += `&stage=${encodeURIComponent(stage)}`;
+  const res = await fetch(url, { headers: getHeaders() });
+  return handleResponse(res);
+}
+
 export { ApiError };
+
