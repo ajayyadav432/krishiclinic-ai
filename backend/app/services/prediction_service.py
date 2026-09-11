@@ -1,0 +1,455 @@
+"""
+Prediction service — orchestrates business logic for crop disease analysis.
+
+This is the core business logic layer. It coordinates between:
+  - AI Provider (disease analysis)
+  - Storage Provider (image persistence)
+  - Database (record persistence)
+
+Route handlers remain thin — they only parse HTTP and delegate here.
+"""
+
+import logging
+import uuid
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import func, select, cast, Date
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.ai.base import AIProvider
+from app.models.prediction import Prediction
+from app.storage.base import StorageProvider
+from app.ai.embedding import generate_embedding, cosine_similarity
+
+logger = logging.getLogger(__name__)
+
+class PredictionService:
+    """
+    Encapsulates all prediction-related business logic.
+
+    Dependencies are injected through the constructor, making this
+    class fully testable with mock implementations.
+    """
+
+    def __init__(
+        self,
+        db: AsyncSession,
+        ai_provider: AIProvider,
+        storage: StorageProvider,
+    ):
+        self._db = db
+        self._ai = ai_provider
+        self._storage = storage
+
+    async def create_prediction(
+        self,
+        image_bytes: bytes,
+        image_filename: str,
+        crop_type: str,
+        farmer_id: uuid.UUID,
+        farmer_notes: str | None = None,
+        location: str | None = None,
+        language: str | None = None,
+    ) -> Prediction:
+        """
+        Full prediction pipeline: store image → RAG retrieval → analyze → persist record.
+        """
+        stored_filename = await self._storage.save(image_filename, image_bytes)
+        logger.info(f"Image saved: {stored_filename}")
+
+        embedding = None
+        rag_context = ""
+        try:
+            embedding_text = f"{crop_type}: {farmer_notes or ''}"
+            embedding = await generate_embedding(embedding_text)
+
+            result = await self._db.execute(
+                select(Prediction)
+                .where(Prediction.status == "REVIEWED")
+                .where(Prediction.crop_type == crop_type)
+                .where(Prediction.notes_embedding.isnot(None))
+            )
+            candidates = result.scalars().all()
+
+            scored = []
+            for cand in candidates:
+                if cand.notes_embedding:
+                    sim = cosine_similarity(embedding, cand.notes_embedding)
+                    scored.append((sim, cand))
+
+            scored.sort(key=lambda x: x[0], reverse=True)
+            top_similar = scored[:2]
+
+            if top_similar:
+                rag_context = "\n\n=== BIOBANK HISTORICAL CASES (Agronomist Verified) ===\n"
+                for idx, (sim, cand) in enumerate(top_similar):
+                    rag_context += f"Case {idx+1} (Similarity: {sim:.2f}):\n"
+                    rag_context += f"- Farmer Observations: {cand.farmer_notes or 'None'}\n"
+                    rag_context += f"- Verified Diagnosis: {cand.agronomist_predicted_disease or cand.predicted_disease}\n"
+                    rag_context += f"- Verified Treatment/Advisory: {cand.agronomist_review or cand.recommendation}\n\n"
+                logger.info(f"RAG found {len(top_similar)} similar cases. Injected as context.")
+        except Exception as e:
+            logger.warning(f"RAG or embedding generation failed: {e}", exc_info=True)
+
+        ai_notes = (farmer_notes or "") + rag_context
+
+        ai_result = await self._ai.analyze(image_bytes, crop_type, ai_notes)
+        logger.info(
+            f"AI prediction: {ai_result.predicted_disease} "
+            f"(confidence={ai_result.confidence}, provider={self._ai.provider_name})"
+        )
+
+        prediction = Prediction(
+            id=uuid.uuid4(),
+            crop_type=crop_type,
+            image_filename=stored_filename,
+            farmer_notes=farmer_notes,
+            predicted_disease=ai_result.predicted_disease,
+            confidence=ai_result.confidence,
+            severity=ai_result.severity,
+            recommendation=ai_result.recommendation,
+            possible_reasons=ai_result.possible_reasons,
+            location=location,
+            language=language,
+            ai_provider=self._ai.provider_name,
+            farmer_id=farmer_id,
+            status="PENDING_REVIEW",
+            notes_embedding=embedding,
+        )
+
+        self._db.add(prediction)
+        await self._db.commit()
+        await self._db.refresh(prediction)
+
+        return prediction
+
+    async def get_prediction(self, prediction_id: uuid.UUID) -> Prediction | None:
+        """Fetch a single prediction by ID."""
+        result = await self._db.execute(
+            select(Prediction).where(Prediction.id == prediction_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_predictions(
+        self,
+        page: int = 1,
+        limit: int = 10,
+        crop_type: str | None = None,
+        disease: str | None = None,
+        farmer_id: uuid.UUID | None = None,
+        status: str | None = None,
+        search: str | None = None,
+    ) -> tuple[list[Prediction], int]:
+        """
+        Return paginated predictions with optional filtering.
+        Supports fuzzy multi-field search across disease, crop, notes, and location.
+        """
+        from sqlalchemy import or_
+
+        query = select(Prediction)
+        count_query = select(func.count(Prediction.id))
+
+        if search and search.strip():
+            term = f"%{search.strip()}%"
+            fuzzy_filter = or_(
+                Prediction.predicted_disease.ilike(term),
+                Prediction.crop_type.ilike(term),
+                Prediction.farmer_notes.ilike(term),
+                Prediction.location.ilike(term),
+                Prediction.recommendation.ilike(term),
+                Prediction.possible_reasons.ilike(term),
+            )
+            query = query.where(fuzzy_filter)
+            count_query = count_query.where(fuzzy_filter)
+
+        if farmer_id:
+            query = query.where(Prediction.farmer_id == farmer_id)
+            count_query = count_query.where(Prediction.farmer_id == farmer_id)
+        if status:
+            query = query.where(Prediction.status == status)
+            count_query = count_query.where(Prediction.status == status)
+        if crop_type:
+            query = query.where(Prediction.crop_type.ilike(f"%{crop_type}%"))
+            count_query = count_query.where(
+                Prediction.crop_type.ilike(f"%{crop_type}%")
+            )
+        if disease:
+            query = query.where(Prediction.predicted_disease.ilike(f"%{disease}%"))
+            count_query = count_query.where(
+                Prediction.predicted_disease.ilike(f"%{disease}%")
+            )
+
+        total_result = await self._db.execute(count_query)
+        total = total_result.scalar() or 0
+
+        offset = (page - 1) * limit
+        query = query.order_by(Prediction.created_at.desc()).offset(offset).limit(limit)
+
+        result = await self._db.execute(query)
+        predictions = list(result.scalars().all())
+
+        return predictions, total
+
+    async def get_analytics_summary(self, crop_type: str | None = None) -> dict:
+        """
+        Compute aggregated analytics for the dashboard, optionally filtered by crop type.
+
+        Returns disease distribution, daily volume (last 7 days),
+        severity breakdown, average confidence, and total count.
+        All computed via SQL aggregation for efficiency.
+        """
+        total_query = select(func.count(Prediction.id))
+        if crop_type:
+            total_query = total_query.where(Prediction.crop_type == crop_type)
+        total_result = await self._db.execute(total_query)
+        total = total_result.scalar() or 0
+
+        avg_query = select(func.avg(Prediction.confidence))
+        if crop_type:
+            avg_query = avg_query.where(Prediction.crop_type == crop_type)
+        avg_result = await self._db.execute(avg_query)
+        avg_confidence = round(float(avg_result.scalar() or 0), 3)
+
+        disease_query = (
+            select(
+                Prediction.predicted_disease,
+                func.count(Prediction.id).label("count"),
+            )
+            .group_by(Prediction.predicted_disease)
+            .order_by(func.count(Prediction.id).desc())
+        )
+        if crop_type:
+            disease_query = disease_query.where(Prediction.crop_type == crop_type)
+        disease_result = await self._db.execute(disease_query)
+        disease_distribution = [
+            {"disease": row.predicted_disease, "count": row.count}
+            for row in disease_result.all()
+        ]
+
+        daily_map = {}
+        for i in range(7):
+            d = (datetime.now(timezone.utc) - timedelta(days=i)).date()
+            daily_map[str(d)] = 0
+
+        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        daily_query = (
+            select(
+                func.date(Prediction.created_at).label("date"),
+                func.count(Prediction.id).label("count"),
+            )
+            .where(Prediction.created_at >= seven_days_ago)
+            .group_by(func.date(Prediction.created_at))
+            .order_by(func.date(Prediction.created_at))
+        )
+        if crop_type:
+            daily_query = daily_query.where(Prediction.crop_type == crop_type)
+        daily_result = await self._db.execute(daily_query)
+        
+        for row in daily_result.all():
+            date_str = str(row.date)
+            if date_str in daily_map:
+                daily_map[date_str] = row.count
+
+        daily_volume = [
+            {"date": d_str, "count": count}
+            for d_str, count in sorted(daily_map.items())
+        ]
+
+        severity_query = (
+            select(
+                Prediction.severity,
+                func.count(Prediction.id).label("count"),
+            )
+            .where(Prediction.severity.isnot(None))
+            .group_by(Prediction.severity)
+        )
+        if crop_type:
+            severity_query = severity_query.where(Prediction.crop_type == crop_type)
+        severity_result = await self._db.execute(severity_query)
+        severity_distribution = {
+            row.severity: row.count for row in severity_result.all()
+        }
+
+        top_crop_query = (
+            select(Prediction.crop_type)
+            .group_by(Prediction.crop_type)
+            .order_by(func.count(Prediction.id).desc())
+            .limit(1)
+        )
+        if crop_type:
+            top_crop_query = top_crop_query.where(Prediction.crop_type == crop_type)
+        top_crop_result = await self._db.execute(top_crop_query)
+        top_crop = top_crop_result.scalar_one_or_none()
+
+        return {
+            "total_predictions": total,
+            "average_confidence": avg_confidence,
+            "disease_distribution": disease_distribution,
+            "daily_volume": daily_volume,
+            "severity_distribution": severity_distribution,
+            "top_crop": top_crop,
+        }
+
+    async def create_prediction_placeholder(
+        self,
+        image_bytes: bytes,
+        image_filename: str,
+        crop_type: str,
+        farmer_id: uuid.UUID,
+        farmer_notes: str | None = None,
+        location: str | None = None,
+        language: str | None = None,
+        ai_provider_name: str | None = None,
+    ) -> Prediction:
+        """
+        Creates a fast database placeholder record, persisting the image immediately.
+        The heavy AI analysis is deferred to a background task.
+        """
+        stored_filename = await self._storage.save(image_filename, image_bytes)
+        logger.info(f"Image saved: {stored_filename}")
+
+        prediction = Prediction(
+            id=uuid.uuid4(),
+            crop_type=crop_type,
+            image_filename=stored_filename,
+            farmer_notes=farmer_notes,
+            predicted_disease="Analyzing...",
+            confidence=0.0,
+            severity="Pending",
+            recommendation="AI is analyzing your crop image. Results will appear shortly.",
+            possible_reasons="Analyzing...",
+            location=location,
+            language=language,
+            ai_provider=ai_provider_name or self._ai.provider_name,
+            farmer_id=farmer_id,
+            status="PENDING_REVIEW",
+        )
+
+        self._db.add(prediction)
+        await self._db.commit()
+        await self._db.refresh(prediction)
+        return prediction
+
+    async def add_followup_image(
+        self,
+        prediction_id: uuid.UUID,
+        image_bytes: bytes,
+        image_filename: str,
+        after_notes: str | None = None,
+    ) -> Prediction:
+        """
+        Saves the follow-up crop recovery image and updates the prediction record.
+        """
+        result = await self._db.execute(
+            select(Prediction).where(Prediction.id == prediction_id)
+        )
+        prediction = result.scalar_one_or_none()
+        if not prediction:
+            raise ValueError("Prediction not found")
+
+        stored_filename = await self._storage.save(image_filename, image_bytes)
+        
+        prediction.after_image_filename = stored_filename
+        prediction.after_notes = after_notes
+        prediction.after_uploaded_at = datetime.now()
+
+        self._db.add(prediction)
+        await self._db.commit()
+        await self._db.refresh(prediction)
+        return prediction
+
+async def process_prediction_background(
+    prediction_id: uuid.UUID,
+    image_bytes: bytes,
+    crop_type: str,
+    farmer_notes: str | None,
+    ai_provider_name: str | None,
+):
+    """
+    Asynchronous background task to run RAG matching, call the AI PATH provider,
+    and update the database prediction record.
+    """
+    from app.core.database import async_session_factory
+    from app.core.dependencies import get_ai_provider_by_name
+    from app.ai.embedding import generate_embedding, cosine_similarity
+    from app.models.prediction import Prediction
+    from sqlalchemy import select
+
+    logger.info(f"Starting async background analysis for prediction {prediction_id}")
+
+    try:
+        if ai_provider_name and ai_provider_name.strip():
+            ai = get_ai_provider_by_name(ai_provider_name.strip().lower())
+        else:
+            from app.core.config import get_settings
+            settings = get_settings()
+            ai = get_ai_provider_by_name(settings.AI_PROVIDER)
+    except Exception as e:
+        logger.error(f"Failed to load AI provider in background: {e}", exc_info=True)
+        return
+
+    embedding = None
+    rag_context = ""
+    try:
+        embedding_text = f"{crop_type}: {farmer_notes or ''}"
+        embedding = await generate_embedding(embedding_text)
+
+        async with async_session_factory() as session:
+            result = await session.execute(
+                select(Prediction)
+                .where(Prediction.status == "REVIEWED")
+                .where(Prediction.crop_type == crop_type)
+                .where(Prediction.notes_embedding.isnot(None))
+            )
+            candidates = result.scalars().all()
+
+            scored = []
+            for cand in candidates:
+                if cand.notes_embedding:
+                    sim = cosine_similarity(embedding, cand.notes_embedding)
+                    scored.append((sim, cand))
+
+            scored.sort(key=lambda x: x[0], reverse=True)
+            top_similar = scored[:2]
+
+            if top_similar:
+                rag_context = "\n\n=== BIOBANK HISTORICAL CASES (Agronomist Verified) ===\n"
+                for idx, (sim, cand) in enumerate(top_similar):
+                    rag_context += f"Case {idx+1} (Similarity: {sim:.2f}):\n"
+                    rag_context += f"- Farmer Observations: {cand.farmer_notes or 'None'}\n"
+                    rag_context += f"- Verified Diagnosis: {cand.agronomist_predicted_disease or cand.predicted_disease}\n"
+                    rag_context += f"- Verified Treatment/Advisory: {cand.agronomist_review or cand.recommendation}\n\n"
+                logger.info(f"Background RAG found {len(top_similar)} similar cases.")
+    except Exception as e:
+        logger.warning(f"Background RAG/Embedding generation failed: {e}", exc_info=True)
+
+    ai_notes = (farmer_notes or "") + rag_context
+    try:
+        ai_result = await ai.analyze(image_bytes, crop_type, ai_notes)
+        logger.info(f"Background AI completed: {ai_result.predicted_disease} for prediction {prediction_id}")
+    except Exception as e:
+        logger.error(f"Background AI analysis failed for prediction {prediction_id}: {e}", exc_info=True)
+        async with async_session_factory() as session:
+            res = await session.execute(select(Prediction).where(Prediction.id == prediction_id))
+            pred = res.scalar_one_or_none()
+            if pred:
+                pred.predicted_disease = "AI Error"
+                pred.recommendation = f"Error during AI analysis: {str(e)}. Please retry or consult an agronomist."
+                pred.possible_reasons = "System Error"
+                session.add(pred)
+                await session.commit()
+        return
+
+    async with async_session_factory() as session:
+        res = await session.execute(select(Prediction).where(Prediction.id == prediction_id))
+        pred = res.scalar_one_or_none()
+        if pred:
+            pred.predicted_disease = ai_result.predicted_disease
+            pred.confidence = ai_result.confidence
+            pred.severity = ai_result.severity
+            pred.recommendation = ai_result.recommendation
+            pred.possible_reasons = ai_result.possible_reasons
+            pred.notes_embedding = embedding
+            pred.ai_provider = ai.provider_name
+            session.add(pred)
+            await session.commit()
+            logger.info(f"Background prediction {prediction_id} successfully saved to database.")

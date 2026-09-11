@@ -1,0 +1,450 @@
+"""
+Database seed script — populates the predictions table with 20+ realistic records.
+
+Uses SQLAlchemy Core bulk insert for efficiency.
+Records span diverse crops, diseases, severity levels, and date ranges
+to produce meaningful analytics dashboard visualizations on first launch.
+"""
+
+import asyncio
+import uuid
+import logging
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import insert, select, func
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
+from app.core.config import get_settings
+from app.core.database import Base
+from app.models.prediction import Prediction
+from app.models.user import User
+from app.core.security import get_password_hash
+
+logger = logging.getLogger(__name__)
+
+SEED_DATA = [
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Wheat",
+        "image_filename": "seed_wheat_01.jpg",
+        "farmer_notes": "Yellow streaks appearing on lower leaves, spreading upward.",
+        "predicted_disease": "Yellow Rust",
+        "confidence": 0.92,
+        "severity": "Medium",
+        "recommendation": "Apply propiconazole fungicide at 0.1% concentration. Monitor field edges.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=0, hours=2),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Wheat",
+        "image_filename": "seed_wheat_02.jpg",
+        "farmer_notes": "Brown patches on leaf tips after recent rain.",
+        "predicted_disease": "Leaf Blight",
+        "confidence": 0.87,
+        "severity": "High",
+        "recommendation": "Remove infected debris. Apply mancozeb 75% WP at 2.5g/L.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=1, hours=5),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Rice",
+        "image_filename": "seed_rice_01.jpg",
+        "farmer_notes": "Diamond-shaped lesions on leaves with grey centers.",
+        "predicted_disease": "Blast",
+        "confidence": 0.94,
+        "severity": "High",
+        "recommendation": "Apply tricyclazole 75% WP at 0.6g/L. Reduce nitrogen fertilization.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=0, hours=8),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Rice",
+        "image_filename": "seed_rice_02.jpg",
+        "farmer_notes": "Circular brown spots scattered across leaves.",
+        "predicted_disease": "Brown Spot",
+        "confidence": 0.85,
+        "severity": "Medium",
+        "recommendation": "Treat seeds with carbendazim. Apply potassium fertilizer.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=2, hours=3),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Rice",
+        "image_filename": "seed_rice_03.jpg",
+        "farmer_notes": "Leaves turning yellow from the tips.",
+        "predicted_disease": "Bacterial Leaf Blight",
+        "confidence": 0.89,
+        "severity": "High",
+        "recommendation": "Use resistant varieties. Apply streptocycline at 500ppm.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=3, hours=1),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Tomato",
+        "image_filename": "seed_tomato_01.jpg",
+        "farmer_notes": "Dark concentric rings on lower leaves.",
+        "predicted_disease": "Early Blight",
+        "confidence": 0.91,
+        "severity": "Medium",
+        "recommendation": "Apply chlorothalonil fungicide. Ensure proper plant spacing.",
+        "ai_provider": "gemini",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=1, hours=12),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Tomato",
+        "image_filename": "seed_tomato_02.jpg",
+        "farmer_notes": "Water-soaked lesions appearing rapidly after rain.",
+        "predicted_disease": "Late Blight",
+        "confidence": 0.89,
+        "severity": "High",
+        "recommendation": "Remove affected plants immediately. Apply metalaxyl + mancozeb spray.",
+        "ai_provider": "gemini",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=0, hours=6),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Tomato",
+        "image_filename": "seed_tomato_03.jpg",
+        "farmer_notes": "White powdery coating on leaves.",
+        "predicted_disease": "Powdery Mildew",
+        "confidence": 0.86,
+        "severity": "Low",
+        "recommendation": "Apply sulfur-based fungicide. Improve air circulation.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=4, hours=9),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Corn",
+        "image_filename": "seed_corn_01.jpg",
+        "farmer_notes": "Long grey-green lesions on leaves.",
+        "predicted_disease": "Northern Leaf Blight",
+        "confidence": 0.88,
+        "severity": "Medium",
+        "recommendation": "Plant resistant hybrids. Apply strobilurin fungicide.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=2, hours=7),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Corn",
+        "image_filename": "seed_corn_02.jpg",
+        "farmer_notes": "Rectangular grey spots between leaf veins.",
+        "predicted_disease": "Gray Leaf Spot",
+        "confidence": 0.83,
+        "severity": "Low",
+        "recommendation": "Practice crop rotation. Reduce tillage to minimize spore dispersal.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=5, hours=4),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Potato",
+        "image_filename": "seed_potato_01.jpg",
+        "farmer_notes": "Dark water-soaked areas on leaves, spreading fast.",
+        "predicted_disease": "Late Blight",
+        "confidence": 0.93,
+        "severity": "High",
+        "recommendation": "Apply mancozeb preventively. Destroy infected tubers.",
+        "ai_provider": "gemini",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=1, hours=3),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Potato",
+        "image_filename": "seed_potato_02.jpg",
+        "farmer_notes": "Rough, corky patches on tuber skin.",
+        "predicted_disease": "Common Scab",
+        "confidence": 0.81,
+        "severity": "Low",
+        "recommendation": "Maintain soil pH below 5.5. Use certified disease-free seed potatoes.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=6, hours=2),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Cotton",
+        "image_filename": "seed_cotton_01.jpg",
+        "farmer_notes": "Angular water-soaked spots on leaves.",
+        "predicted_disease": "Bacterial Blight",
+        "confidence": 0.90,
+        "severity": "High",
+        "recommendation": "Use acid-delinted treated seeds. Apply streptomycin sulfate spray.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=3, hours=8),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Cotton",
+        "image_filename": "seed_cotton_02.jpg",
+        "farmer_notes": "Leaves curling upward with whitefly infestation.",
+        "predicted_disease": "Cotton Leaf Curl Virus",
+        "confidence": 0.87,
+        "severity": "High",
+        "recommendation": "Control whitefly population with imidacloprid. Remove infected plants.",
+        "ai_provider": "gemini",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=0, hours=4),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Sugarcane",
+        "image_filename": "seed_sugarcane_01.jpg",
+        "farmer_notes": "Red discoloration inside the cane when split.",
+        "predicted_disease": "Red Rot",
+        "confidence": 0.88,
+        "severity": "High",
+        "recommendation": "Use disease-free setts. Treat with carbendazim 0.1% for 15 minutes.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=4, hours=6),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Soybean",
+        "image_filename": "seed_soybean_01.jpg",
+        "farmer_notes": "Small rusty pustules on undersides of leaves.",
+        "predicted_disease": "Rust",
+        "confidence": 0.91,
+        "severity": "Medium",
+        "recommendation": "Apply triazole fungicide at first signs. Scout during flowering.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=2, hours=11),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Soybean",
+        "image_filename": "seed_soybean_02.jpg",
+        "farmer_notes": "Leaves appear healthy but yellowing at edges.",
+        "predicted_disease": "Cercospora Leaf Blight",
+        "confidence": 0.79,
+        "severity": "Low",
+        "recommendation": "Apply copper-based fungicide. Ensure adequate drainage.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=5, hours=10),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Wheat",
+        "image_filename": "seed_wheat_03.jpg",
+        "farmer_notes": "Orange-brown powdery spots on stems and leaves.",
+        "predicted_disease": "Stem Rust",
+        "confidence": 0.95,
+        "severity": "High",
+        "recommendation": "Plant rust-resistant varieties. Apply tebuconazole at onset.",
+        "ai_provider": "gemini",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=1, hours=9),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Rice",
+        "image_filename": "seed_rice_04.jpg",
+        "farmer_notes": "Plants looking healthy after treatment.",
+        "predicted_disease": "Healthy",
+        "confidence": 0.96,
+        "severity": "Low",
+        "recommendation": "Continue current agricultural practices. Monitor regularly.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=0, hours=1),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Tomato",
+        "image_filename": "seed_tomato_04.jpg",
+        "farmer_notes": "Leaves wilting despite adequate watering.",
+        "predicted_disease": "Fusarium Wilt",
+        "confidence": 0.84,
+        "severity": "High",
+        "recommendation": "Remove infected plants. Solarize soil before next planting.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=3, hours=5),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Corn",
+        "image_filename": "seed_corn_03.jpg",
+        "farmer_notes": "Small reddish-brown pustules on leaf surfaces.",
+        "predicted_disease": "Common Rust",
+        "confidence": 0.86,
+        "severity": "Medium",
+        "recommendation": "Apply mancozeb or triazole fungicide. Plant resistant varieties.",
+        "ai_provider": "gemini",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=1, hours=7),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Potato",
+        "image_filename": "seed_potato_03.jpg",
+        "farmer_notes": "Dark sunken spots on tubers at harvest.",
+        "predicted_disease": "Black Scurf",
+        "confidence": 0.82,
+        "severity": "Medium",
+        "recommendation": "Treat seed tubers with pencycuron. Practice crop rotation.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=6, hours=5),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Wheat",
+        "image_filename": "seed_wheat_04.jpg",
+        "farmer_notes": "White powdery growth on upper leaf surfaces.",
+        "predicted_disease": "Powdery Mildew",
+        "confidence": 0.90,
+        "severity": "Medium",
+        "recommendation": "Apply sulfur-based fungicide at 3g/L. Avoid dense planting.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=4, hours=3),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Cotton",
+        "image_filename": "seed_cotton_03.jpg",
+        "farmer_notes": "Small brown spots with yellow halos.",
+        "predicted_disease": "Alternaria Leaf Spot",
+        "confidence": 0.83,
+        "severity": "Low",
+        "recommendation": "Apply mancozeb spray. Remove lower infected leaves.",
+        "ai_provider": "mock",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=2, hours=6),
+    },
+    {
+        "id": uuid.uuid4(),
+        "crop_type": "Sugarcane",
+        "image_filename": "seed_sugarcane_02.jpg",
+        "farmer_notes": "White pencil-line streaks along leaf blade.",
+        "predicted_disease": "Smut",
+        "confidence": 0.88,
+        "severity": "Medium",
+        "recommendation": "Rogue out infected clumps. Use disease-free seed material.",
+        "ai_provider": "gemini",
+        "created_at": datetime.now(timezone.utc) - timedelta(days=5, hours=2),
+    },
+]
+
+async def seed_database():
+    """
+    Insert seed records into the predictions table and create default users.
+    """
+    settings = get_settings()
+    
+    from pathlib import Path
+    upload_dir = Path(settings.UPLOAD_DIR)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    dummy_jpeg = b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00`\x00`\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.\' \",#\x1c\x1c(7),01444\x1f\'9=82<.342\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00\xff\xc4\x00\x1f\x00\x00\x01\x05\x01\x01\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\xff\xda\x00\x08\x01\x01\x00\x00?\x00\xbf\x00\xff\xd9'
+    
+    for item in SEED_DATA:
+        img_name = item.get("image_filename")
+        if img_name:
+            img_path = upload_dir / img_name
+            if not img_path.exists():
+                with open(img_path, "wb") as f:
+                    f.write(dummy_jpeg)
+                logger.info(f"Restored seed image: {img_name}")
+
+    db_url = settings.DATABASE_URL.strip()
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+    connect_args = {}
+    if "sslmode=" in db_url:
+        if "?" in db_url:
+            base_url, query = db_url.split("?", 1)
+            params = query.split("&")
+            filtered_params = [p for p in params if not p.startswith("sslmode=")]
+            if filtered_params:
+                db_url = f"{base_url}?{'&'.join(filtered_params)}"
+            else:
+                db_url = base_url
+        connect_args["ssl"] = True
+
+    engine = create_async_engine(db_url, connect_args=connect_args)
+    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    async with session_factory() as session:
+        result = await session.execute(select(User).where(User.username == "farmer"))
+        farmer = result.scalar_one_or_none()
+        if not farmer:
+            farmer = User(
+                id=uuid.uuid4(),
+                username="farmer",
+                password_hash=get_password_hash("password123"),
+                role="FARMER"
+            )
+            session.add(farmer)
+            await session.commit()
+            await session.refresh(farmer)
+            logger.info("Created seed user: farmer (password: password123)")
+
+        result = await session.execute(select(User).where(User.username == "agronomist"))
+        agronomist = result.scalar_one_or_none()
+        if not agronomist:
+            agronomist = User(
+                id=uuid.uuid4(),
+                username="agronomist",
+                password_hash=get_password_hash("password123"),
+                role="AGRONOMIST"
+            )
+            session.add(agronomist)
+            await session.commit()
+            await session.refresh(agronomist)
+            logger.info("Created seed user: agronomist (password: password123)")
+
+        result = await session.execute(select(User).where(User.username == "admin"))
+        admin = result.scalar_one_or_none()
+        if not admin:
+            admin = User(
+                id=uuid.uuid4(),
+                username="admin",
+                password_hash=get_password_hash("password123"),
+                role="ADMIN"
+            )
+            session.add(admin)
+            await session.commit()
+            await session.refresh(admin)
+            logger.info("Created seed user: admin (password: password123)")
+
+        result = await session.execute(select(func.count(Prediction.id)))
+        count = result.scalar() or 0
+
+        if count >= 20:
+            logger.info(f"Database already has {count} prediction records. Skipping seed.")
+            return
+
+        logger.info(f"Seeding database with {len(SEED_DATA)} records...")
+
+        prepared_data = []
+        for idx, item in enumerate(SEED_DATA):
+            data_copy = item.copy()
+            data_copy["farmer_id"] = farmer.id
+            if idx >= len(SEED_DATA) - 3:
+                data_copy["status"] = "PENDING_REVIEW"
+                data_copy["agronomist_id"] = None
+                data_copy["agronomist_review"] = None
+                data_copy["agronomist_predicted_disease"] = None
+                data_copy["agronomist_severity"] = None
+                data_copy["reviewed_at"] = None
+            else:
+                data_copy["status"] = "REVIEWED"
+                data_copy["agronomist_id"] = agronomist.id
+                data_copy["agronomist_review"] = "Looks correct. Seeding recommendation verified."
+                data_copy["agronomist_predicted_disease"] = data_copy["predicted_disease"]
+                data_copy["agronomist_severity"] = data_copy["severity"]
+                data_copy["reviewed_at"] = datetime.now(timezone.utc) - timedelta(days=1)
+            prepared_data.append(data_copy)
+
+        await session.execute(insert(Prediction), prepared_data)
+        await session.commit()
+
+        logger.info(f"Successfully seeded {len(SEED_DATA)} prediction records linked to users.")
+
+    await engine.dispose()
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    asyncio.run(seed_database())
