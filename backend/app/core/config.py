@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-3.1-flash-lite"
     GOOGLE_TRANSLATE_API_KEY: str = ""
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    GROQ_MODEL: str = "qwen/qwen3.6-27b"
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
 
