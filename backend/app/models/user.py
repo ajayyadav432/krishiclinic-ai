@@ -1,7 +1,3 @@
-"""
-SQLAlchemy ORM model for the users table.
-"""
-
 import uuid
 from datetime import datetime
 
@@ -12,9 +8,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 
 class User(Base):
-    """
-    Represents a registered user (Farmer or Agronomist).
-    """
 
     __tablename__ = "users"
 

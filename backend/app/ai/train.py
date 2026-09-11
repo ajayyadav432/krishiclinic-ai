@@ -1,13 +1,3 @@
-"""
-train.py — Crop Disease Model Training Script
-==============================================
-Trains or fine-tunes an EfficientNetV2-S model on a crop disease dataset from Hugging Face.
-Saves the trained model weights and metadata for use by LocalPyTorchProvider.
-
-Usage:
-    python backend/app/ai/train.py --epochs 5 --batch-size 16 --lr 1e-4
-"""
-
 import os
 import json
 import argparse

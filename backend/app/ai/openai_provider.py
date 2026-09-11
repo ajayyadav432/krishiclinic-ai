@@ -1,13 +1,3 @@
-"""
-OpenAI-compatible AI provider implementation (Bonus Feature).
-
-Demonstrates the true swappability of the AIProvider abstraction.
-Switching from Gemini to OpenAI requires ZERO changes to routes,
-services, schemas, or the frontend — only the env var changes.
-
-Supports any OpenAI-compatible API (OpenAI, Azure OpenAI, Ollama, etc).
-"""
-
 import base64
 import json
 import logging
@@ -19,13 +9,6 @@ from app.ai.base import AIProvider, PredictionResult
 logger = logging.getLogger(__name__)
 
 class OpenAIProvider(AIProvider):
-    """
-    AI provider using OpenAI's GPT-4 Vision or compatible APIs.
-
-    This implementation proves the architectural claim that swapping
-    AI providers requires zero structural changes. The interface is
-    identical to GeminiProvider and MockProvider.
-    """
 
     def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
         self._api_key = api_key
@@ -42,12 +25,6 @@ class OpenAIProvider(AIProvider):
         crop_type: str,
         farmer_notes: str | None = None,
     ) -> PredictionResult:
-        """
-        Send crop image to OpenAI Vision API for analysis.
-
-        Encodes image as base64 and sends alongside a structured prompt.
-        Uses JSON mode to guarantee parseable output.
-        """
         img_b64 = base64.b64encode(image).decode("utf-8")
 
         notes_section = ""

@@ -1,10 +1,3 @@
-"""
-Local PyTorch AI provider implementation.
-
-Loads a local/cached EfficientNetV2-S model trained on Soybean crop diseases.
-Downloads the model weights and configuration from Hugging Face Hub if not present.
-"""
-
 import io
 import os
 import json
@@ -70,9 +63,6 @@ ADVISORY_LOOKUP = {
 }
 
 class LocalPyTorchProvider(AIProvider):
-    """
-    AI Provider running local PyTorch inference using a fine-tuned EfficientNetV2-S.
-    """
 
     def __init__(self):
         self._model = None
@@ -87,7 +77,6 @@ class LocalPyTorchProvider(AIProvider):
         return "local"
 
     def _initialize_model(self):
-        """Lazy load PyTorch, download weights from Hugging Face if needed, and build model."""
         if self._model is not None:
             return
 
@@ -153,9 +142,6 @@ class LocalPyTorchProvider(AIProvider):
         crop_type: str,
         farmer_notes: str | None = None,
     ) -> PredictionResult:
-        """
-        Analyze a crop image using the local PyTorch classification model.
-        """
         self._initialize_model()
 
         import torch

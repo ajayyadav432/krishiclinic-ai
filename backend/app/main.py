@@ -1,10 +1,3 @@
-"""
-FastAPI application entry point.
-
-Configures CORS, static file serving, lifespan events,
-and mounts all API routers.
-"""
-
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -25,12 +18,6 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Application lifespan events.
-
-    Startup: log configuration, ensure upload directory exists.
-    Shutdown: cleanup resources.
-    """
     settings = get_settings()
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"AI Provider: {settings.AI_PROVIDER}")
@@ -44,7 +31,6 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down...")
 
 def create_app() -> FastAPI:
-    """Factory function to create and configure the FastAPI application."""
     settings = get_settings()
 
     app = FastAPI(

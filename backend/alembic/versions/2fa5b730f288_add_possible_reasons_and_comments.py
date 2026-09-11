@@ -1,9 +1,3 @@
-"""add_possible_reasons_and_comments
-
-Revision ID: 2fa5b730f288
-Revises: b0f70df93352
-Create Date: 2026-07-18 02:30:06.252525
-"""
 from typing import Sequence, Union
 
 from alembic import op

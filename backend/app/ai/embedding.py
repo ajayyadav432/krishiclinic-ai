@@ -1,7 +1,3 @@
-"""
-Text embedding utilities for biobank indexing and RAG retrieval.
-"""
-
 import os
 import hmac
 import hashlib
@@ -14,10 +10,6 @@ from app.core.config import get_settings
 logger = logging.getLogger(__name__)
 
 def get_mock_embedding(text: str) -> list[float]:
-    """
-    Generate a deterministic 768-dimensional mock embedding vector.
-    Used for local offline testing and CI.
-    """
     vector = []
     text_bytes = text.lower().strip().encode("utf-8")
     for i in range(768):
@@ -27,11 +19,6 @@ def get_mock_embedding(text: str) -> list[float]:
     return vector
 
 async def generate_embedding(text: str) -> list[float]:
-    """
-    Generate a 768-dimensional text embedding.
-    Uses Gemini's text-embedding-004 if GEMINI_API_KEY is configured.
-    Falls back to get_mock_embedding if offline or API key is not present.
-    """
     settings = get_settings()
     
     if not settings.GEMINI_API_KEY or settings.AI_PROVIDER == "mock":
@@ -55,10 +42,6 @@ async def generate_embedding(text: str) -> list[float]:
         return get_mock_embedding(text)
 
 def cosine_similarity(v1: list[float], v2: list[float]) -> float:
-    """
-    Compute cosine similarity between two float vectors.
-    Returns a score between -1.0 and 1.0 (or 0.0 if empty/mismatched).
-    """
     if not v1 or not v2 or len(v1) != len(v2):
         return 0.0
         

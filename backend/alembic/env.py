@@ -1,10 +1,3 @@
-"""
-Alembic environment configuration for async PostgreSQL migrations.
-
-Configures Alembic to use our SQLAlchemy async engine and
-imports all models so autogenerate can detect schema changes.
-"""
-
 import asyncio
 import os
 from logging.config import fileConfig
@@ -29,7 +22,6 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode — generates SQL without connecting."""
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -42,13 +34,11 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 def do_run_migrations(connection):
-    """Execute migrations using the provided connection."""
     context.configure(connection=connection, target_metadata=target_metadata)
     with context.begin_transaction():
         context.run_migrations()
 
 async def run_async_migrations() -> None:
-    """Run migrations in 'online' mode using async engine."""
     db_url = config.get_main_option("sqlalchemy.url").strip()
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
@@ -79,7 +69,6 @@ async def run_async_migrations() -> None:
     await connectable.dispose()
 
 def run_migrations_online() -> None:
-    """Entry point for online migrations — delegates to async runner."""
     asyncio.run(run_async_migrations())
 
 if context.is_offline_mode():

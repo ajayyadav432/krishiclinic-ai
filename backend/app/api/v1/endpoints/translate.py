@@ -1,7 +1,3 @@
-"""
-Translation endpoint — enables multilingual UI by translating dynamic text.
-"""
-
 import logging
 import httpx
 from fastapi import APIRouter, HTTPException

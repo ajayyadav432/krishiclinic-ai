@@ -4,7 +4,7 @@ from typing import List, Optional
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from app.core.database import get_db
+from app.core.dependencies import get_db
 from app.models.prediction import Prediction
 
 router = APIRouter()

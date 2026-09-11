@@ -1,12 +1,9 @@
-"""Tests for the Local PyTorch AI provider."""
-
 import pytest
 from unittest.mock import MagicMock, patch
 from app.ai.local_provider import LocalPyTorchProvider
 from app.ai.base import PredictionResult
 
 def test_local_provider_name():
-    """LocalPyTorchProvider should identify itself as 'local'."""
     provider = LocalPyTorchProvider()
     assert provider.provider_name == "local"
 
@@ -15,7 +12,6 @@ def test_local_provider_name():
 @patch("timm.create_model")
 @patch("torch.load")
 async def test_local_provider_initialize_and_predict(mock_torch_load, mock_create_model, mock_hf_download):
-    """Test model initialization and inference workflow with mocks."""
     mock_hf_download.return_value = "/tmp/dummy_path"
 
     mock_model = MagicMock()

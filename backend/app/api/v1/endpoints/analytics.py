@@ -1,9 +1,3 @@
-"""
-Analytics endpoint — aggregated dashboard statistics.
-
-All aggregation is performed via SQL (not in Python) for efficiency.
-"""
-
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,12 +21,6 @@ async def get_analytics_summary(
     ai_provider: AIProvider = Depends(get_ai_provider),
     storage: StorageProvider = Depends(get_storage_provider),
 ):
-    """
-    Return aggregated analytics including disease distribution,
-    daily prediction volume, severity breakdown, and averages.
-
-    All aggregation uses SQL GROUP BY — no full-table scans in Python.
-    """
     service = PredictionService(db, ai_provider, storage)
     summary = await service.get_analytics_summary(crop_type=crop_type)
     return AnalyticsSummaryResponse(**summary)

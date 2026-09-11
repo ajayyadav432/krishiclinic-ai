@@ -1,9 +1,3 @@
-"""create predictions table
-
-Revision ID: 001
-Revises: 
-Create Date: 2026-07-17
-"""
 from typing import Sequence, Union
 
 from alembic import op

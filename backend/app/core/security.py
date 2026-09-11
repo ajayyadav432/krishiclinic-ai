@@ -1,10 +1,3 @@
-"""
-Security utilities for password hashing and JWT token handling.
-
-Implemented with zero external dependencies using Python's standard library
-(hashlib, hmac, base64) to ensure absolute stability and ease of deployment.
-"""
-
 import os
 import base64
 import hmac
@@ -20,10 +13,6 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440
 
 def get_password_hash(password: str) -> str:
-    """
-    Hash a password using PBKDF2-SHA256 with 100,000 iterations.
-    Returns: "salt_hex$hash_hex"
-    """
     salt = os.urandom(16)
     db_hash = hashlib.pbkdf2_hmac(
         "sha256",
@@ -34,9 +23,6 @@ def get_password_hash(password: str) -> str:
     return f"{salt.hex()}${db_hash.hex()}"
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """
-    Verify a plain password against the stored PBKDF2-SHA256 hash.
-    """
     try:
         if "$" not in hashed_password:
             return False
@@ -56,18 +42,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 def _base64url_encode(data: bytes) -> str:
-    """Encode bytes to URL-safe base64 string without padding."""
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("utf-8")
 
 def _base64url_decode(data: str) -> bytes:
-    """Decode URL-safe base64 string with restored padding."""
     padding = "=" * (4 - (len(data) % 4))
     return base64.urlsafe_b64decode(data + padding)
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
-    """
-    Generate a signed JWT token containing the payload data.
-    """
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -94,10 +75,6 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     return f"{header_b64}.{payload_b64}.{signature_b64}"
 
 def decode_access_token(token: str) -> dict | None:
-    """
-    Decode and verify JWT signature and expiration.
-    Returns the payload dictionary, or None if invalid/expired.
-    """
     try:
         parts = token.split(".")
         if len(parts) != 3:

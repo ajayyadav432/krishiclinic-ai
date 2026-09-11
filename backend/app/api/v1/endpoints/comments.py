@@ -1,7 +1,3 @@
-"""
-Comment API endpoints — get, create, upvote, and downvote comments for Reddit-like crop diagnosis posts.
-"""
-
 import uuid
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -28,7 +24,6 @@ async def get_comments(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List comments along with author user profiles and current user vote status."""
     pred_res = await db.execute(select(Prediction).where(Prediction.id == prediction_id))
     if not pred_res.scalar_one_or_none():
         raise HTTPException(
@@ -83,7 +78,6 @@ async def create_comment(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Post a new comment to a prediction post."""
     pred_res = await db.execute(select(Prediction).where(Prediction.id == prediction_id))
     pred = pred_res.scalar_one_or_none()
     if not pred:
@@ -127,7 +121,6 @@ async def vote_comment(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Upvote or downvote a comment with toggle support (Reddit style)."""
     vote_type = vote_in.vote_type.lower()
     if vote_type not in ("upvote", "downvote"):
         raise HTTPException(

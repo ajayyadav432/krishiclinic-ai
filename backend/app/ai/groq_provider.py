@@ -1,10 +1,3 @@
-"""
-Groq AI provider implementation.
-
-Uses the Groq REST API with vision-capable models (e.g., llama-4-scout)
-for multimodal crop disease analysis. Groq offers free, ultra-fast inference.
-"""
-
 import base64
 import json
 import logging
@@ -16,12 +9,6 @@ from app.ai.base import AIProvider, PredictionResult
 logger = logging.getLogger(__name__)
 
 class GroqProvider(AIProvider):
-    """
-    AI provider using Groq's fast inference API with vision models.
-
-    Groq provides free-tier access to vision-capable LLMs with
-    extremely low latency, making it ideal for real-time crop analysis.
-    """
 
     def __init__(self, api_key: str, model: str = "meta-llama/llama-4-scout-17b-16e-instruct"):
         self._api_key = api_key
@@ -38,12 +25,6 @@ class GroqProvider(AIProvider):
         crop_type: str,
         farmer_notes: str | None = None,
     ) -> PredictionResult:
-        """
-        Send crop image to Groq's vision model for disease analysis.
-
-        Uses the OpenAI-compatible chat completions API with base64-encoded
-        image content for multimodal input.
-        """
         notes_section = ""
         if farmer_notes:
             notes_section = f"\nFarmer's observations: {farmer_notes}"

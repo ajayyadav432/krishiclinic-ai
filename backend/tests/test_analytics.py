@@ -1,11 +1,8 @@
-"""Tests for the analytics endpoint."""
-
 import io
 import pytest
 
 @pytest.mark.asyncio
 async def test_analytics_summary(client, sample_image):
-    """GET /api/v1/analytics/summary should return aggregated stats."""
     for crop in ["Wheat", "Rice", "Tomato"]:
         await client.post(
             "/api/v1/predictions",

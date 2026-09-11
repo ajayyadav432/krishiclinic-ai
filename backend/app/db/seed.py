@@ -1,11 +1,3 @@
-"""
-Database seed script — populates the predictions table with 20+ realistic records.
-
-Uses SQLAlchemy Core bulk insert for efficiency.
-Records span diverse crops, diseases, severity levels, and date ranges
-to produce meaningful analytics dashboard visualizations on first launch.
-"""
-
 import asyncio
 import uuid
 import logging
@@ -326,9 +318,6 @@ SEED_DATA = [
 ]
 
 async def seed_database():
-    """
-    Insert seed records into the predictions table and create default users.
-    """
     settings = get_settings()
     
     from pathlib import Path

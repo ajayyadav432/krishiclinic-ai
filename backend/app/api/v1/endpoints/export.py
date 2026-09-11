@@ -1,10 +1,3 @@
-"""
-Export endpoints — allows downloading prediction history in CSV, JSON, or XML formats,
-and generating a beautiful PDF advisory card for farmers.
-
-Supports the Admin portal requirements for auditing and offline analysis.
-"""
-
 import csv
 import io
 import json
@@ -44,10 +37,6 @@ async def export_predictions(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Stream all predictions in CSV, JSON, or XML format.
-    Allows Admins and Agronomists to export the whole database.
-    """
     if current_user.role not in ("ADMIN", "AGRONOMIST"):
         raise HTTPException(
             status_code=403,
@@ -184,10 +173,6 @@ async def export_prediction_pdf(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Generate and download a beautifully formatted PDF report for a prediction case.
-    Farmers can export their own predictions. Agronomists/Admins can export any.
-    """
     pred_res = await db.execute(select(Prediction).where(Prediction.id == prediction_id))
     p = pred_res.scalar_one_or_none()
     if not p:

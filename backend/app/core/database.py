@@ -1,10 +1,3 @@
-"""
-Async SQLAlchemy 2.0 database engine and session factory.
-
-Uses asyncpg driver for non-blocking PostgreSQL access.
-Connection pooling is configured for moderate concurrent load.
-"""
-
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -51,5 +44,4 @@ async_session_factory = async_sessionmaker(
 )
 
 class Base(DeclarativeBase):
-    """Declarative base for all SQLAlchemy models."""
     pass

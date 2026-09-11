@@ -1,13 +1,7 @@
-"""
-Application configuration using Pydantic Settings.
-All environment variables are loaded here with sensible defaults for development.
-"""
-
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 class Settings(BaseSettings):
-    """Central configuration for the KrishiClinic AI backend."""
 
     APP_NAME: str = "KrishiClinic AI"
     APP_VERSION: str = "1.0.0"
@@ -36,5 +30,4 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    """Cached settings instance — loaded once per process."""
     return Settings()

@@ -1,9 +1,3 @@
-"""add_users_and_agronomist_workflow
-
-Revision ID: b0f70df93352
-Revises: 001
-Create Date: 2026-07-18 01:59:14.254632
-"""
 from typing import Sequence, Union
 
 from alembic import op

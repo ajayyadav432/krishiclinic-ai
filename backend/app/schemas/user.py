@@ -1,7 +1,3 @@
-"""
-Pydantic schemas for User registration, login, and profile serialization.
-"""
-
 from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, Field, ConfigDict

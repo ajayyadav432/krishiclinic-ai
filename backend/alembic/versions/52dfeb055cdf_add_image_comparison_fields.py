@@ -1,9 +1,3 @@
-"""add_image_comparison_fields
-
-Revision ID: 52dfeb055cdf
-Revises: 2fa5b730f288
-Create Date: 2026-07-19 13:29:44.327480
-"""
 from typing import Sequence, Union
 
 from alembic import op

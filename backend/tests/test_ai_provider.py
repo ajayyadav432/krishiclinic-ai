@@ -1,12 +1,9 @@
-"""Tests for the AI provider abstraction."""
-
 import pytest
 from app.ai.mock_provider import MockProvider
 from app.ai.base import PredictionResult
 
 @pytest.mark.asyncio
 async def test_mock_provider_returns_prediction():
-    """MockProvider should return a valid PredictionResult."""
     provider = MockProvider()
     result = await provider.analyze(
         image=b"dummy image data",
@@ -22,7 +19,6 @@ async def test_mock_provider_returns_prediction():
 
 @pytest.mark.asyncio
 async def test_mock_provider_different_crops():
-    """MockProvider should return different diseases for different crops."""
     provider = MockProvider()
 
     wheat_result = await provider.analyze(b"wheat_image", "Wheat")
@@ -35,13 +31,11 @@ async def test_mock_provider_different_crops():
 
 @pytest.mark.asyncio
 async def test_mock_provider_name():
-    """MockProvider should identify itself as 'mock'."""
     provider = MockProvider()
     assert provider.provider_name == "mock"
 
 @pytest.mark.asyncio
 async def test_mock_provider_unknown_crop():
-    """MockProvider should handle unknown crop types gracefully."""
     provider = MockProvider()
     result = await provider.analyze(b"unknown_crop", "Dragonfruit")
 
@@ -51,7 +45,6 @@ async def test_mock_provider_unknown_crop():
 
 @pytest.mark.asyncio
 async def test_mock_provider_deterministic():
-    """Same inputs should produce same outputs (deterministic)."""
     provider = MockProvider()
     image = b"consistent_test_image"
 
@@ -62,7 +55,6 @@ async def test_mock_provider_deterministic():
     assert result1.confidence == result2.confidence
 
 class FailingProvider(MockProvider):
-    """Mock provider that always raises an error to test fallbacks."""
     @property
     def provider_name(self) -> str:
         return "failing"
@@ -77,7 +69,6 @@ class FailingProvider(MockProvider):
 
 @pytest.mark.asyncio
 async def test_fallback_provider_success():
-    """FallbackAIProvider should return primary provider's result if it succeeds."""
     from app.ai.fallback_provider import FallbackAIProvider
     primary = MockProvider()
     fallback = MockProvider()
@@ -89,7 +80,6 @@ async def test_fallback_provider_success():
 
 @pytest.mark.asyncio
 async def test_fallback_provider_fails_to_fallback():
-    """FallbackAIProvider should use the fallback provider if primary fails."""
     from app.ai.fallback_provider import FallbackAIProvider
     primary = FailingProvider()
     fallback = MockProvider()

@@ -1,10 +1,3 @@
-"""
-Test configuration and fixtures for the backend test suite.
-
-Uses a file-based async SQLite database (via aiosqlite), MockProvider,
-and HTTPX AsyncClient for robust, single-loop async integration testing.
-"""
-
 import asyncio
 from typing import AsyncGenerator
 import pytest
@@ -38,7 +31,6 @@ TestingSessionLocal = async_sessionmaker(
 )
 
 async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Provide a test async database session."""
     async with TestingSessionLocal() as session:
         try:
             yield session
@@ -46,15 +38,12 @@ async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 def override_get_ai_provider():
-    """Always use MockProvider in tests."""
     return MockProvider()
 
 def override_get_storage_provider():
-    """Use a test storage directory."""
     return LocalStorage(upload_dir="test_uploads")
 
 async def override_get_current_user(db: AsyncSession = Depends(override_get_db)) -> User:
-    """Mock get_current_user in tests."""
     import uuid
     from sqlalchemy import select
     result = await db.execute(select(User).where(User.username == "test_farmer"))
@@ -72,11 +61,9 @@ async def override_get_current_user(db: AsyncSession = Depends(override_get_db))
     return user
 
 async def override_get_current_farmer(current_user: User = Depends(override_get_current_user)) -> User:
-    """Mock get_current_farmer in tests."""
     return current_user
 
 async def override_get_current_agronomist(db: AsyncSession = Depends(override_get_db)) -> User:
-    """Mock get_current_agronomist in tests."""
     import uuid
     from sqlalchemy import select
     result = await db.execute(select(User).where(User.username == "test_agronomist"))
@@ -105,7 +92,6 @@ db_mod.async_session_factory = TestingSessionLocal
 
 @pytest_asyncio.fixture(autouse=True)
 async def setup_database():
-    """Create test database tables before each test, drop after."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
@@ -114,7 +100,6 @@ async def setup_database():
 
 @pytest_asyncio.fixture
 async def client():
-    """Provide an async test client running on the same loop as the tests."""
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
         base_url="http://testserver",
@@ -123,5 +108,4 @@ async def client():
 
 @pytest.fixture
 def sample_image():
-    """Create a minimal valid JPEG for testing."""
     return b'\xff\xd8\xff\xe0' + b'\x00' * 100

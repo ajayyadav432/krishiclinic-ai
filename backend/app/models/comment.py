@@ -1,7 +1,3 @@
-"""
-SQLAlchemy ORM models for forum comments and upvote/downvote tracking.
-"""
-
 import uuid
 from datetime import datetime
 
@@ -12,9 +8,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 class Comment(Base):
-    """
-    Represents a forum comment posted by a farmer or agronomist on a prediction case.
-    """
 
     __tablename__ = "comments"
 
@@ -52,9 +45,6 @@ class Comment(Base):
     user = relationship("User")
 
 class CommentVote(Base):
-    """
-    Tracks which users voted on which comments to prevent multiple voting.
-    """
 
     __tablename__ = "comment_votes"
 

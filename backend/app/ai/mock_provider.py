@@ -1,11 +1,3 @@
-"""
-Mock AI provider for development and CI testing.
-
-Returns deterministic predictions based on crop type using a curated
-lookup table of realistic agricultural diseases. This provider makes
-ZERO external network calls, enabling fast, reliable testing.
-"""
-
 import hashlib
 from app.ai.base import AIProvider, PredictionResult
 
@@ -316,13 +308,6 @@ _DEFAULT_PREDICTION = {
 }
 
 class MockProvider(AIProvider):
-    """
-    Deterministic mock AI provider.
-
-    Selects predictions from a curated disease database based on crop type.
-    Uses a hash of the image bytes to consistently return the same result
-    for the same image, simulating deterministic AI behavior.
-    """
 
     @property
     def provider_name(self) -> str:
@@ -334,13 +319,6 @@ class MockProvider(AIProvider):
         crop_type: str,
         farmer_notes: str | None = None,
     ) -> PredictionResult:
-        """
-        Return a deterministic prediction based on crop type and image hash.
-
-        The image hash is used to select from multiple possible diseases
-        for the same crop type, providing variety while maintaining
-        determinism for the same inputs.
-        """
         crop_key = crop_type.lower().strip()
         diseases = _DISEASE_DATABASE.get(crop_key, [_DEFAULT_PREDICTION])
 

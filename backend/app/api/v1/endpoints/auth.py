@@ -1,7 +1,3 @@
-"""
-Authentication endpoints — User registration and login.
-"""
-
 import uuid
 import logging
 from datetime import timedelta

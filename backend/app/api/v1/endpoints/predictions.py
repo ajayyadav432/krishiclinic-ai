@@ -1,11 +1,3 @@
-"""
-Prediction endpoints — POST/GET for crop disease analysis.
-
-Handles file upload validation, delegates to PredictionService,
-and returns properly serialized Pydantic responses.
-Route handlers are intentionally thin — all logic lives in the service layer.
-"""
-
 import uuid
 import logging
 
@@ -38,10 +30,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 def mask_prediction(p, user_role: str):
-    """
-    Mask raw AI response fields if prediction is pending review and user is not an Agronomist or Admin.
-    If prediction is reviewed, return agronomist's verified diagnosis and review notes.
-    """
     if user_role in ("AGRONOMIST", "ADMIN"):
         return {
             "id": p.id,
@@ -114,9 +102,6 @@ def mask_prediction(p, user_role: str):
     }
 
 def mask_prediction_list_item(p, user_role: str):
-    """
-    Lightweight masking for the predictions list view.
-    """
     if user_role in ("AGRONOMIST", "ADMIN"):
         return p
     
@@ -152,11 +137,6 @@ def mask_prediction_list_item(p, user_role: str):
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 def _validate_image(file: UploadFile, content: bytes) -> None:
-    """
-    Validate uploaded file: MIME type and file size.
-
-    Raises HTTPException with descriptive error messages.
-    """
     settings = get_settings()
     max_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
 
@@ -210,9 +190,6 @@ async def create_prediction(
     storage: StorageProvider = Depends(get_storage_provider),
     current_user: User = Depends(get_current_farmer),
 ):
-    """
-    Accept a crop image upload and return a pending prediction.
-    """
     if ai_provider_name and ai_provider_name.strip():
         ai_provider = get_ai_provider_by_name(ai_provider_name.strip().lower())
 
@@ -299,11 +276,6 @@ async def list_predictions(
     storage: StorageProvider = Depends(get_storage_provider),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Return paginated list of predictions, newest first.
-    If the user is a Farmer, only show their own predictions.
-    If Agronomist, show all predictions.
-    """
     farmer_id = current_user.id if current_user.role == "FARMER" else None
 
     service = PredictionService(db, ai_provider, storage)
@@ -337,10 +309,6 @@ async def get_prediction(
     storage: StorageProvider = Depends(get_storage_provider),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Fetch a single prediction by UUID.
-    Checks ownership for Farmers.
-    """
     service = PredictionService(db, ai_provider, storage)
     prediction = await service.get_prediction(prediction_id)
 
@@ -376,9 +344,6 @@ async def review_prediction(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_agronomist),
 ):
-    """
-    Review a pending prediction request (Agronomist only).
-    """
     service = PredictionService(db, None, None)
     prediction = await service.get_prediction(prediction_id)
 
@@ -420,9 +385,6 @@ async def add_followup(
     storage: StorageProvider = Depends(get_storage_provider),
     current_user: User = Depends(get_current_farmer),
 ):
-    """
-    Upload a follow-up image for a crop to track recovery progress.
-    """
     service = PredictionService(db, ai_provider, storage)
     prediction = await service.get_prediction(prediction_id)
     if not prediction:

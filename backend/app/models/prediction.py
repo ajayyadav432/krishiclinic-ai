@@ -1,10 +1,3 @@
-"""
-SQLAlchemy 2.0 ORM model for the predictions table.
-
-Uses UUID primary keys, TIMESTAMPTZ for timezone-aware timestamps,
-and strategic indexes on frequently queried columns.
-"""
-
 import uuid
 from datetime import datetime
 
@@ -15,12 +8,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 class Prediction(Base):
-    """
-    Represents a single crop disease prediction record.
-
-    Each record stores the uploaded image reference, AI analysis results,
-    and metadata about the prediction request.
-    """
 
     __tablename__ = "predictions"
 

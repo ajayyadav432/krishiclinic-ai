@@ -1,14 +1,3 @@
-"""
-Prediction service — orchestrates business logic for crop disease analysis.
-
-This is the core business logic layer. It coordinates between:
-  - AI Provider (disease analysis)
-  - Storage Provider (image persistence)
-  - Database (record persistence)
-
-Route handlers remain thin — they only parse HTTP and delegate here.
-"""
-
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -23,12 +12,6 @@ from app.ai.embedding import generate_embedding, cosine_similarity
 logger = logging.getLogger(__name__)
 
 class PredictionService:
-    """
-    Encapsulates all prediction-related business logic.
-
-    Dependencies are injected through the constructor, making this
-    class fully testable with mock implementations.
-    """
 
     def __init__(
         self,
@@ -50,9 +33,6 @@ class PredictionService:
         location: str | None = None,
         language: str | None = None,
     ) -> Prediction:
-        """
-        Full prediction pipeline: store image → RAG retrieval → analyze → persist record.
-        """
         stored_filename = await self._storage.save(image_filename, image_bytes)
         logger.info(f"Image saved: {stored_filename}")
 
@@ -123,7 +103,6 @@ class PredictionService:
         return prediction
 
     async def get_prediction(self, prediction_id: uuid.UUID) -> Prediction | None:
-        """Fetch a single prediction by ID."""
         result = await self._db.execute(
             select(Prediction).where(Prediction.id == prediction_id)
         )
@@ -139,10 +118,6 @@ class PredictionService:
         status: str | None = None,
         search: str | None = None,
     ) -> tuple[list[Prediction], int]:
-        """
-        Return paginated predictions with optional filtering.
-        Supports fuzzy multi-field search across disease, crop, notes, and location.
-        """
         from sqlalchemy import or_
 
         query = select(Prediction)
@@ -190,13 +165,6 @@ class PredictionService:
         return predictions, total
 
     async def get_analytics_summary(self, crop_type: str | None = None) -> dict:
-        """
-        Compute aggregated analytics for the dashboard, optionally filtered by crop type.
-
-        Returns disease distribution, daily volume (last 7 days),
-        severity breakdown, average confidence, and total count.
-        All computed via SQL aggregation for efficiency.
-        """
         total_query = select(func.count(Prediction.id))
         if crop_type:
             total_query = total_query.where(Prediction.crop_type == crop_type)
@@ -300,10 +268,6 @@ class PredictionService:
         language: str | None = None,
         ai_provider_name: str | None = None,
     ) -> Prediction:
-        """
-        Creates a fast database placeholder record, persisting the image immediately.
-        The heavy AI analysis is deferred to a background task.
-        """
         stored_filename = await self._storage.save(image_filename, image_bytes)
         logger.info(f"Image saved: {stored_filename}")
 
@@ -336,9 +300,6 @@ class PredictionService:
         image_filename: str,
         after_notes: str | None = None,
     ) -> Prediction:
-        """
-        Saves the follow-up crop recovery image and updates the prediction record.
-        """
         result = await self._db.execute(
             select(Prediction).where(Prediction.id == prediction_id)
         )
@@ -364,10 +325,6 @@ async def process_prediction_background(
     farmer_notes: str | None,
     ai_provider_name: str | None,
 ):
-    """
-    Asynchronous background task to run RAG matching, call the AI PATH provider,
-    and update the database prediction record.
-    """
     from app.core.database import async_session_factory
     from app.core.dependencies import get_ai_provider_by_name
     from app.ai.embedding import generate_embedding, cosine_similarity

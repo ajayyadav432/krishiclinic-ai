@@ -1,11 +1,3 @@
-"""
-Google Gemini AI provider implementation.
-
-Uses the google-genai SDK to send crop images for multimodal analysis.
-Forces structured JSON output via Pydantic schema to guarantee
-parseable, type-safe responses from the LLM.
-"""
-
 import json
 import logging
 
@@ -17,12 +9,6 @@ from app.ai.base import AIProvider, PredictionResult
 logger = logging.getLogger(__name__)
 
 class GeminiProvider(AIProvider):
-    """
-    Production AI provider using Google Gemini's multimodal capabilities.
-
-    Sends crop images alongside contextual prompts to Gemini and forces
-    structured JSON output matching our PredictionResult schema.
-    """
 
     def __init__(self, api_key: str, model: str = "gemini-2.0-flash"):
         self._client = genai.Client(api_key=api_key)
@@ -38,12 +24,6 @@ class GeminiProvider(AIProvider):
         crop_type: str,
         farmer_notes: str | None = None,
     ) -> PredictionResult:
-        """
-        Send crop image to Gemini for disease analysis.
-
-        Uses multimodal input (text + image) with structured output
-        to guarantee a parseable JSON response matching PredictionResult.
-        """
         notes_section = ""
         if farmer_notes:
             notes_section = f"\nFarmer's observations: {farmer_notes}"

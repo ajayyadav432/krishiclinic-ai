@@ -1,10 +1,3 @@
-"""
-Health check endpoint.
-
-Validates application liveliness and database connectivity.
-Returns version info for monitoring and debugging.
-"""
-
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,13 +15,6 @@ router = APIRouter()
     description="Verify application and database health status.",
 )
 async def health_check(db: AsyncSession = Depends(get_db)):
-    """
-    Return application health status including database connectivity.
-
-    Returns 200 with status 'ok' if everything is healthy.
-    Returns 200 with status 'degraded' if database is unreachable
-    (application is still running but database is down).
-    """
     settings = get_settings()
     db_status = "connected"
 

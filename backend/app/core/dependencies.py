@@ -1,11 +1,3 @@
-"""
-FastAPI dependency injection providers.
-
-Centralizes dependency resolution for database sessions,
-AI providers, and storage backends. This is the single point
-where concrete implementations are bound to abstract interfaces.
-"""
-
 from typing import AsyncGenerator
 import uuid
 import logging
@@ -32,10 +24,6 @@ from app.storage.local_storage import LocalStorage
 logger = logging.getLogger(__name__)
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """
-    Yield an async database session scoped to a single request.
-    The session is automatically closed after the request completes.
-    """
     async with async_session_factory() as session:
         try:
             yield session
@@ -43,18 +31,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 def _build_provider(provider_name: str) -> AIProvider:
-    """
-    Build an AI provider instance by name.
-
-    Supports four providers with automatic mock fallback:
-      - mock: Deterministic responses, no API key needed
-      - gemini: Google Gemini (falls back to mock if API key is missing or calls fail)
-      - groq: Groq LLM (falls back to mock if API key is missing or calls fail)
-      - openai: OpenAI GPT-4 Vision (falls back to mock if API key is missing or calls fail)
-
-    Switching providers requires only changing the AI_PROVIDER
-    environment variable. Zero code changes to routes or services.
-    """
     settings = get_settings()
 
     if provider_name == "gemini":
@@ -99,17 +75,10 @@ def _build_provider(provider_name: str) -> AIProvider:
     return MockProvider()
 
 def get_ai_provider() -> AIProvider:
-    """
-    Default AI provider factory — reads AI_PROVIDER from env config.
-    """
     settings = get_settings()
     return _build_provider(settings.AI_PROVIDER)
 
 def get_ai_provider_by_name(provider_name: str) -> AIProvider:
-    """
-    Build a specific AI provider by name.
-    Used when the frontend sends a per-request provider override.
-    """
     valid = {"mock", "gemini", "groq", "openai", "local"}
     if provider_name not in valid:
         logger.warning(f"Unknown AI provider '{provider_name}', falling back to default.")
@@ -117,11 +86,6 @@ def get_ai_provider_by_name(provider_name: str) -> AIProvider:
     return _build_provider(provider_name)
 
 def get_storage_provider() -> StorageProvider:
-    """
-    Factory for storage backends.
-    Currently returns local filesystem storage.
-    Swap to S3Storage by changing this single binding.
-    """
     settings = get_settings()
     return LocalStorage(upload_dir=settings.UPLOAD_DIR)
 
@@ -132,10 +96,6 @@ async def get_current_user(
     token_query: str | None = Query(None, alias="token"),
     db: AsyncSession = Depends(get_db)
 ) -> User:
-    """
-    Extract the JWT access token, decode it, and retrieve the current User.
-    Supports both Authorization header and query parameter 'token' for testing.
-    """
     token = token_bearer or token_query
     
     if not token:
@@ -182,10 +142,6 @@ async def get_current_user(
 async def get_current_farmer(
     current_user: User = Depends(get_current_user)
 ) -> User:
-    """
-    Verify the logged-in user is a FARMER.
-    Agronomists and Admins are treated as superusers and can also access farmer actions.
-    """
     if current_user.role not in {"FARMER", "AGRONOMIST", "ADMIN"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -196,9 +152,6 @@ async def get_current_farmer(
 async def get_current_agronomist(
     current_user: User = Depends(get_current_user)
 ) -> User:
-    """
-    Verify the logged-in user has the AGRONOMIST role.
-    """
     if current_user.role != "AGRONOMIST":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
