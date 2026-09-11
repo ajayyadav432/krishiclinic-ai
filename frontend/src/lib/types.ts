@@ -1,0 +1,89 @@
+export interface Prediction {
+  id: string;
+  crop_type: string;
+  image_filename: string | null;
+  farmer_notes: string | null;
+  predicted_disease: string;
+  confidence: number;
+  severity: string | null;
+  recommendation: string | null;
+  possible_reasons?: string | null;
+  location?: string | null;
+  language?: string | null;
+  status?: string;
+  ai_provider: string;
+  created_at: string;
+
+  farmer_id?: string | null;
+  after_image_filename?: string | null;
+  after_notes?: string | null;
+  after_uploaded_at?: string | null;
+}
+
+export interface PredictionListItem {
+  id: string;
+  crop_type: string;
+  image_filename: string | null;
+  predicted_disease: string;
+  confidence: number;
+  severity: string | null;
+  status?: string;
+  ai_provider: string;
+  created_at: string;
+}
+
+export interface PredictionListResponse {
+  items: PredictionListItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface DiseaseCount {
+  disease: string;
+  count: number;
+}
+
+export interface DailyCount {
+  date: string;
+  count: number;
+}
+
+export interface AnalyticsSummary {
+  total_predictions: number;
+  average_confidence: number;
+  disease_distribution: DiseaseCount[];
+  daily_volume: DailyCount[];
+  severity_distribution: Record<string, number>;
+  top_crop: string | null;
+}
+
+export interface HealthStatus {
+  status: string;
+  version: string;
+  database: string;
+}
+
+export const CROP_TYPES = [
+  "Wheat",
+  "Rice",
+  "Tomato",
+  "Corn",
+  "Potato",
+  "Cotton",
+  "Sugarcane",
+  "Soybean",
+  "Mustard",
+  "Groundnut",
+  "Chilli",
+] as const;
+
+export type CropType = (typeof CROP_TYPES)[number];
+
+export const AI_PROVIDERS = [
+  { value: "", label: "Default (server config)" },
+  { value: "gemini", label: " Google Gemini" },
+  { value: "groq", label: " Groq (Llama 4)" },
+  { value: "local", label: " Local PyTorch (EfficientNetV2)" },
+  { value: "mock", label: " Mock (deterministic)" },
+] as const;
