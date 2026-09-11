@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/swipeRefreshLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#e8f5e9">
+
+        <!-- WebView -->
+        <WebView
+            android:id="@+id/webView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_above="@+id/progressBar" />
+
+        <!-- Loading progress bar -->
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:layout_alignParentTop="true"
+            android:indeterminate="false"
+            android:max="100"
+            android:progressTint="#4caf50"
+            android:visibility="gone" />
+
+        <!-- Offline error message overlay -->
+        <LinearLayout
+            android:id="@+id/offlineMessage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="32dp"
+            android:background="#e8f5e9"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🌿"
+                android:textSize="64sp"
+                android:gravity="center" />
+
+            <TextView
+                android:id="@+id/offlineMessageText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⚠️ Cannot connect to KrishiClinic.\nPlease check your internet connection."
+                android:textSize="16sp"
+                android:textColor="#1e293b"
+                android:gravity="center"
+                android:layout_marginTop="16dp"
+                android:fontFamily="sans-serif-medium" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Pull down to refresh"
+                android:textSize="13sp"
+                android:textColor="#94a3b8"
+                android:gravity="center"
+                android:layout_marginTop="8dp" />
+
+        </LinearLayout>
+
+    </RelativeLayout>
+
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

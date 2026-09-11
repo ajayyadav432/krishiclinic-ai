@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">KrishiClinic AI</string>
+    <string name="app_tagline">Intelligent Crop Health Platform</string>
+    <string name="offline_message">Cannot connect to KrishiClinic. Please check your internet connection.</string>
+    <string name="pull_to_refresh">Pull down to refresh</string>
+</resources>

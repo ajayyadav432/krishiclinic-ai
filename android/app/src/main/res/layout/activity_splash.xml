@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#4caf50"
+    android:gravity="center">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:layout_centerInParent="true">
+
+        <!-- App icon placeholder (emoji) -->
+        <TextView
+            android:id="@+id/splash_logo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🌾"
+            android:textSize="80sp"
+            android:gravity="center" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="KrishiClinic AI"
+            android:textSize="32sp"
+            android:textColor="#ffffff"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginTop="12dp"
+            android:fontFamily="sans-serif-medium" />
+
+        <TextView
+            android:id="@+id/splash_tagline"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Intelligent Crop Health Platform"
+            android:textSize="14sp"
+            android:textColor="#c8e6c9"
+            android:gravity="center"
+            android:layout_marginTop="8dp"
+            android:alpha="0" />
+
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Powered by AI • Serving Farmers"
+        android:textSize="11sp"
+        android:textColor="#a5d6a7"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="32dp" />
+
+</RelativeLayout>

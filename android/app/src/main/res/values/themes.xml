@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.KrishiClinic" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">#4caf50</item>
+        <item name="colorPrimaryVariant">#388e3c</item>
+        <item name="colorOnPrimary">#ffffff</item>
+        <item name="colorSecondary">#f0c040</item>
+        <item name="colorOnSecondary">#000000</item>
+        <item name="android:statusBarColor">#388e3c</item>
+        <item name="android:navigationBarColor">#4caf50</item>
+        <item name="android:windowBackground">#e8f5e9</item>
+    </style>
+
+    <style name="Theme.KrishiClinic.Splash" parent="Theme.KrishiClinic">
+        <item name="android:statusBarColor">#4caf50</item>
+        <item name="android:navigationBarColor">#4caf50</item>
+        <item name="android:windowBackground">#4caf50</item>
+    </style>
+</resources>
