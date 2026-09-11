@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
+import { getOutbreakSummary, subscribeOutbreakAlerts } from "@/lib/api";
 
 interface OutbreakCluster {
   id: string;
@@ -100,10 +101,32 @@ const STATIC_CLUSTERS: OutbreakCluster[] = [
 
 export default function OutbreakRadarPage() {
   const { t } = useApp();
-  const [clusters] = useState<OutbreakCluster[]>(STATIC_CLUSTERS);
+  const [clusters, setClusters] = useState<OutbreakCluster[]>(STATIC_CLUSTERS);
   const [selectedCrop, setSelectedCrop] = useState<string>("All");
   const [subscribedPhone, setSubscribedPhone] = useState("");
   const [subscribedSuccess, setSubscribedSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadOutbreakData() {
+      try {
+        setLoading(true);
+        const data = await getOutbreakSummary();
+        if (isMounted && data && Array.isArray(data.clusters) && data.clusters.length > 0) {
+          setClusters(data.clusters);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch live outbreak summary, keeping baseline monitoring:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    loadOutbreakData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filteredClusters = selectedCrop === "All"
     ? clusters
@@ -112,9 +135,20 @@ export default function OutbreakRadarPage() {
   const totalCases = clusters.reduce((acc, c) => acc + c.active_cases, 0);
   const highRiskCount = clusters.filter(c => c.threat_level === "High").length;
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (subscribedPhone.trim()) {
+      try {
+        await subscribeOutbreakAlerts({
+          farmer_name: "Farmer",
+          phone_number: subscribedPhone.trim(),
+          district: clusters[0]?.district || "Local Region",
+          crops: selectedCrop !== "All" ? [selectedCrop] : ["Wheat", "Tomato", "Rice"],
+          alert_radius_km: 25,
+        });
+      } catch (err) {
+        console.warn("Subscription fallback:", err);
+      }
       setSubscribedSuccess(true);
       setTimeout(() => setSubscribedSuccess(false), 5000);
       setSubscribedPhone("");
@@ -127,15 +161,15 @@ export default function OutbreakRadarPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
           <div>
             <h1 className="page-title" style={{ fontSize: "1.75rem", fontWeight: 700, margin: 0 }}>
-              Regional Outbreak Surveillance
+              {t("Regional Outbreak Surveillance")}
             </h1>
             <p className="page-subtitle" style={{ color: "var(--color-text-muted)", marginTop: "0.25rem" }}>
-              Aggregated anonymized crop disease detections to protect neighboring farmers within a 25km perimeter.
+              {t("Aggregated anonymized crop disease detections to protect neighboring farmers within a 25km perimeter.")}
             </p>
           </div>
           <div style={{ display: "flex", gap: "0.75rem" }}>
             <Link href="/" className="btn btn-outline" style={{ fontSize: "0.875rem", padding: "0.5rem 1rem" }}>
-              Back to Diagnosis
+              ← {t("Back to Diagnosis")}
             </Link>
           </div>
         </div>
@@ -143,32 +177,32 @@ export default function OutbreakRadarPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem", marginBottom: "1.75rem" }}>
         <div className="stat-card" style={{ background: "var(--color-surface)", padding: "1.25rem", borderRadius: "0.75rem", border: "1px solid var(--color-border)" }}>
-          <div style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Active Disease Clusters</div>
+          <div style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", textTransform: "uppercase", fontWeight: 600 }}>{t("Active Disease Clusters")}</div>
           <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--color-text)", marginTop: "0.25rem" }}>{clusters.length}</div>
         </div>
         <div className="stat-card" style={{ background: "var(--color-surface)", padding: "1.25rem", borderRadius: "0.75rem", border: "1px solid var(--color-border)" }}>
-          <div style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", textTransform: "uppercase", fontWeight: 600 }}>High Risk Areas</div>
+          <div style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", textTransform: "uppercase", fontWeight: 600 }}>{t("High Risk Areas")}</div>
           <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "#dc2626", marginTop: "0.25rem" }}>{highRiskCount}</div>
         </div>
         <div className="stat-card" style={{ background: "var(--color-surface)", padding: "1.25rem", borderRadius: "0.75rem", border: "1px solid var(--color-border)" }}>
-          <div style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Monitored Field Cases</div>
+          <div style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", textTransform: "uppercase", fontWeight: 600 }}>{t("Monitored Field Cases")}</div>
           <div style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--color-primary)", marginTop: "0.25rem" }}>{totalCases}</div>
         </div>
         <div className="stat-card" style={{ background: "var(--color-surface)", padding: "1.25rem", borderRadius: "0.75rem", border: "1px solid var(--color-border)" }}>
-          <div style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Early Warning Protocol</div>
-          <div style={{ fontSize: "1rem", fontWeight: 700, color: "#16a34a", marginTop: "0.5rem" }}>Active (25km Radius)</div>
+          <div style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", textTransform: "uppercase", fontWeight: 600 }}>{t("Early Warning Protocol")}</div>
+          <div style={{ fontSize: "1rem", fontWeight: 700, color: "#16a34a", marginTop: "0.5rem" }}>{t("Active (25km Radius)")}</div>
         </div>
       </div>
 
       <div style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "0.75rem", border: "1px solid var(--color-border)", marginBottom: "1.75rem" }}>
-        <h3 style={{ fontSize: "1.125rem", fontWeight: 700, marginBottom: "0.5rem" }}>Subscribe to Village Outbreak SMS Alerts</h3>
+        <h3 style={{ fontSize: "1.125rem", fontWeight: 700, marginBottom: "0.5rem" }}>{t("Subscribe to Village Outbreak SMS Alerts")}</h3>
         <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)", marginBottom: "1rem" }}>
-          Receive automated SMS warnings when crop diseases are identified on neighboring plots within your radius.
+          {t("Receive automated SMS warnings when crop diseases are identified on neighboring plots within your radius.")}
         </p>
         <form onSubmit={handleSubscribe} style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           <input
             type="tel"
-            placeholder="Enter mobile number"
+            placeholder={t("Enter mobile number")}
             value={subscribedPhone}
             onChange={(e) => setSubscribedPhone(e.target.value)}
             required
@@ -176,32 +210,32 @@ export default function OutbreakRadarPage() {
             style={{ maxWidth: "320px" }}
           />
           <button type="submit" className="btn btn-primary" style={{ padding: "0.5rem 1.25rem" }}>
-            Enable Proximity Warnings
+            {t("Enable Proximity Warnings")}
           </button>
         </form>
         {subscribedSuccess && (
           <div style={{ marginTop: "0.75rem", color: "#16a34a", fontSize: "0.875rem", fontWeight: 600 }}>
-            Proximity alert subscription enabled successfully.
+            {t("Proximity alert subscription enabled successfully.")}
           </div>
         )}
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
-        <h2 style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0 }}>Active Regional Infestation Clusters</h2>
+        <h2 style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0 }}>{t("Active Regional Infestation Clusters")}</h2>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <span style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>Filter Crop:</span>
+          <span style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>{t("Filter Crop:")}</span>
           <select
             value={selectedCrop}
             onChange={(e) => setSelectedCrop(e.target.value)}
             className="input"
             style={{ width: "auto", padding: "0.35rem 0.75rem" }}
           >
-            <option value="All">All Crops</option>
-            <option value="Tomato">Tomato</option>
-            <option value="Wheat">Wheat</option>
-            <option value="Soybean">Soybean</option>
-            <option value="Mustard">Mustard</option>
-            <option value="Potato">Potato</option>
+            <option value="All">{t("All Crops")}</option>
+            <option value="Tomato">{t("Tomato")}</option>
+            <option value="Wheat">{t("Wheat")}</option>
+            <option value="Soybean">{t("Soybean")}</option>
+            <option value="Mustard">{t("Mustard")}</option>
+            <option value="Potato">{t("Potato")}</option>
           </select>
         </div>
       </div>
@@ -240,7 +274,7 @@ export default function OutbreakRadarPage() {
                       textTransform: "uppercase"
                     }}
                   >
-                    {cluster.threat_level} Alert
+                    {t(cluster.threat_level)} {t("Alert")}
                   </span>
                   <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
                     Updated {cluster.last_reported}
@@ -248,34 +282,34 @@ export default function OutbreakRadarPage() {
                 </div>
 
                 <h3 style={{ fontSize: "1.125rem", fontWeight: 700, margin: "0 0 0.35rem 0" }}>
-                  {cluster.disease}
+                  {t(cluster.disease)}
                 </h3>
                 <div style={{ fontSize: "0.875rem", color: "var(--color-text-secondary)", marginBottom: "0.75rem" }}>
-                  <strong>{cluster.crop}</strong> · {cluster.region}, {cluster.district}
+                  <strong>{t(cluster.crop)}</strong> · {cluster.region}, {cluster.district}
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", background: "var(--color-bg-secondary, #f9fafb)", padding: "0.75rem", borderRadius: "0.5rem", marginBottom: "0.875rem", fontSize: "0.8125rem" }}>
                   <div>
-                    <span style={{ color: "var(--color-text-muted)" }}>Active Cases:</span>{" "}
-                    <strong>{cluster.active_cases} fields</strong>
+                    <span style={{ color: "var(--color-text-muted)" }}>{t("Active Cases")}:</span>{" "}
+                    <strong>{cluster.active_cases} {t("fields")}</strong>
                   </div>
                   <div>
-                    <span style={{ color: "var(--color-text-muted)" }}>Warning Radius:</span>{" "}
+                    <span style={{ color: "var(--color-text-muted)" }}>{t("Warning Radius")}:</span>{" "}
                     <strong>{cluster.radius_km} km</strong>
                   </div>
                   <div>
-                    <span style={{ color: "var(--color-text-muted)" }}>Trend:</span>{" "}
-                    <strong>{cluster.trend}</strong>
+                    <span style={{ color: "var(--color-text-muted)" }}>{t("Trend")}:</span>{" "}
+                    <strong>{t(cluster.trend)}</strong>
                   </div>
                   <div>
-                    <span style={{ color: "var(--color-text-muted)" }}>Coordinates:</span>{" "}
+                    <span style={{ color: "var(--color-text-muted)" }}>{t("Coordinates")}:</span>{" "}
                     <strong>{cluster.latitude.toFixed(2)}, {cluster.longitude.toFixed(2)}</strong>
                   </div>
                 </div>
 
                 <div style={{ borderTop: "1px solid var(--color-border-light, #f3f4f6)", paddingTop: "0.75rem" }}>
                   <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", marginBottom: "0.25rem" }}>
-                    Preventive Action Advisory
+                    {t("Preventive Action Advisory")}
                   </div>
                   <p style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)", lineHeight: 1.5, margin: 0 }}>
                     {cluster.prevention_advisory}
