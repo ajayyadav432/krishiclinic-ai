@@ -1,3 +1,7 @@
+import os
+os.environ.setdefault("JWT_SECRET", "test-secret-key-1234567890-secure")
+os.environ["AI_PROVIDER"] = "mock"
+
 import asyncio
 from typing import AsyncGenerator
 import pytest

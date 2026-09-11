@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     UPLOAD_DIR: str = "uploads"
     MAX_FILE_SIZE_MB: int = 10
+    AUTO_APPROVE_CONFIDENCE_THRESHOLD: float = 0.7
 
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",

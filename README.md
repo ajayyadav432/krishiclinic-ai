@@ -65,11 +65,12 @@ Delivers dual-track intervention plans:
 - Immediate chemical fungicides/bactericides with precise volumetric dilution guidance.
 - Preventive cultural and organic practices (e.g. neem oil, copper sprays, soil drainage).
 
-### 4. Low-Confidence Referral Workflow
-When model confidence falls below 70%, predictions are automatically flagged as Pending Review and routed to the Agronomist Console for manual inspection and verification.
+### 4. Confidence-Based Auto-Release & Low-Confidence Referral Workflow
+High-confidence predictions (confidence >= 0.70, configurable via `AUTO_APPROVE_CONFIDENCE_THRESHOLD`) are automatically released as `REVIEWED` and visible to farmers immediately. When model confidence falls below 70%, predictions remain gated as `PENDING_REVIEW` with masked advisory details, routed to accredited Agronomists and Admins for manual verification.
 
-### 5. Offline Model Execution
-Ships with local model weights support powered by PyTorch and Hugging Face Hub caching. If connectivity drops in the field, inference continues locally without external API dependencies.
+### 5. Offline Model Execution & Zero-Network Capability
+Backend model weights (EfficientNetV2-S) are prefetched and bundled directly at Docker build time in `backend/app/ai/weights`. When running `AI_PROVIDER=local`, disease inference and dictionary-based advisory translations operate with zero network access required after build.
+*(Note: Full frontend Progressive Web App (PWA) and offline-sync queue are planned roadmap stretch goals).*
 
 ### 6. Voice Readout & Regional Languages
 Farmers can toggle between English, Hindi, Telugu, Marathi, and Spanish. A dedicated speech synthesis player reads the full advisory out loud.

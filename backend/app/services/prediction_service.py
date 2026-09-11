@@ -23,85 +23,6 @@ class PredictionService:
         self._ai = ai_provider
         self._storage = storage
 
-    async def create_prediction(
-        self,
-        image_bytes: bytes,
-        image_filename: str,
-        crop_type: str,
-        farmer_id: uuid.UUID,
-        farmer_notes: str | None = None,
-        location: str | None = None,
-        language: str | None = None,
-    ) -> Prediction:
-        stored_filename = await self._storage.save(image_filename, image_bytes)
-        logger.info(f"Image saved: {stored_filename}")
-
-        embedding = None
-        rag_context = ""
-        try:
-            embedding_text = f"{crop_type}: {farmer_notes or ''}"
-            embedding = await generate_embedding(embedding_text)
-
-            result = await self._db.execute(
-                select(Prediction)
-                .where(Prediction.status == "REVIEWED")
-                .where(Prediction.crop_type == crop_type)
-                .where(Prediction.notes_embedding.isnot(None))
-            )
-            candidates = result.scalars().all()
-
-            scored = []
-            for cand in candidates:
-                if cand.notes_embedding:
-                    sim = cosine_similarity(embedding, cand.notes_embedding)
-                    scored.append((sim, cand))
-
-            scored.sort(key=lambda x: x[0], reverse=True)
-            top_similar = scored[:2]
-
-            if top_similar:
-                rag_context = "\n\n=== BIOBANK HISTORICAL CASES (Agronomist Verified) ===\n"
-                for idx, (sim, cand) in enumerate(top_similar):
-                    rag_context += f"Case {idx+1} (Similarity: {sim:.2f}):\n"
-                    rag_context += f"- Farmer Observations: {cand.farmer_notes or 'None'}\n"
-                    rag_context += f"- Verified Diagnosis: {cand.agronomist_predicted_disease or cand.predicted_disease}\n"
-                    rag_context += f"- Verified Treatment/Advisory: {cand.agronomist_review or cand.recommendation}\n\n"
-                logger.info(f"RAG found {len(top_similar)} similar cases. Injected as context.")
-        except Exception as e:
-            logger.warning(f"RAG or embedding generation failed: {e}", exc_info=True)
-
-        ai_notes = (farmer_notes or "") + rag_context
-
-        ai_result = await self._ai.analyze(image_bytes, crop_type, ai_notes)
-        logger.info(
-            f"AI prediction: {ai_result.predicted_disease} "
-            f"(confidence={ai_result.confidence}, provider={self._ai.provider_name})"
-        )
-
-        prediction = Prediction(
-            id=uuid.uuid4(),
-            crop_type=crop_type,
-            image_filename=stored_filename,
-            farmer_notes=farmer_notes,
-            predicted_disease=ai_result.predicted_disease,
-            confidence=ai_result.confidence,
-            severity=ai_result.severity,
-            recommendation=ai_result.recommendation,
-            possible_reasons=ai_result.possible_reasons,
-            location=location,
-            language=language,
-            ai_provider=self._ai.provider_name,
-            farmer_id=farmer_id,
-            status="PENDING_REVIEW",
-            notes_embedding=embedding,
-        )
-
-        self._db.add(prediction)
-        await self._db.commit()
-        await self._db.refresh(prediction)
-
-        return prediction
-
     async def get_prediction(self, prediction_id: uuid.UUID) -> Prediction | None:
         result = await self._db.execute(
             select(Prediction).where(Prediction.id == prediction_id)
@@ -400,6 +321,9 @@ async def process_prediction_background(
         res = await session.execute(select(Prediction).where(Prediction.id == prediction_id))
         pred = res.scalar_one_or_none()
         if pred:
+            from app.core.config import get_settings
+            settings = get_settings()
+
             pred.predicted_disease = ai_result.predicted_disease
             pred.confidence = ai_result.confidence
             pred.severity = ai_result.severity
@@ -407,6 +331,23 @@ async def process_prediction_background(
             pred.possible_reasons = ai_result.possible_reasons
             pred.notes_embedding = embedding
             pred.ai_provider = ai.provider_name
+
+            confidence_val = ai_result.confidence or 0.0
+            if confidence_val >= settings.AUTO_APPROVE_CONFIDENCE_THRESHOLD:
+                pred.status = "REVIEWED"
+                pred.reviewed_at = datetime.now(timezone.utc)
+                logger.info(
+                    f"Background prediction {prediction_id} auto-approved with confidence {confidence_val:.2f} "
+                    f">= {settings.AUTO_APPROVE_CONFIDENCE_THRESHOLD}."
+                )
+            else:
+                pred.status = "PENDING_REVIEW"
+                logger.info(
+                    f"Background prediction {prediction_id} kept in PENDING_REVIEW (confidence {confidence_val:.2f} "
+                    f"< {settings.AUTO_APPROVE_CONFIDENCE_THRESHOLD})."
+                )
+
             session.add(pred)
             await session.commit()
             logger.info(f"Background prediction {prediction_id} successfully saved to database.")
+

@@ -112,22 +112,23 @@ AI operations are hidden behind the abstract `AIProvider` contract. Swapping pro
 2.  **Google Gemini (`gemini`)**: Connects to the `google-genai` SDK using `gemini-1.5-flash` or `gemini-2.0-flash`. Enforces structured JSON schema outputs.
 3.  **Groq API (`groq`)**: Invokes Llama-3 models via Groq REST endpoints.
 4.  **OpenAI SDK (`openai`)**: Integrates GPT-4o-mini structured schema APIs.
-5.  **Local PyTorch (`local`)**: Edge inference using a fine-tuned **EfficientNetV2-S** model. Automatically caches model weights from the Hugging Face Hub, allowing completely offline local inference.
+5.  **Local PyTorch (`local`)**: Edge inference using a fine-tuned **EfficientNetV2-S** model. Model weights are prefetched and bundled at Docker build time in `backend/app/ai/weights`, allowing zero-network offline local inference after build. *(Note: Frontend PWA and background offline upload queue are planned roadmap stretch goals).*
 
 ### Fallback Provider Wrapper
 Includes a wrapper fallback provider. If Gemini or OpenAI fails (due to network error, invalid API key, or rate limits), the fallback wrapper catches the exception and degrades gracefully to Mock data. It saves `ai_provider: "gemini (fallback to mock)"` to the database, ensuring system availability.
 
 ### RAG (Retrieval-Augmented Generation)
-Before querying LLMs, the service vectorizes the crop type and notes, searches the database for similar verified agronomist cases, and injects the top 2 matching case details directly into the LLM system prompt. This drastically improves diagnosis quality.
+Before querying LLMs, the service vectorizes the crop type and notes, searches the database for similar verified agronomist cases, and injects the top 2 matching case details directly into the LLM system prompt. In mock mode, a normalized feature-hashing embedding preserves cosine similarity across matching crop and symptom vocabulary.
 
 ---
 
 ## 7. Advanced Application Features
 
-### JWT Expert Review Workflow
-- **Roles**: `FARMER`, `AGRONOMIST`, `ADMIN` (passwords hashed via bcrypt).
-- **Masking**: Queries uploaded by farmers default to the `PENDING_REVIEW` state. Standard farmers receive a masked response ("Pending expert review") to avoid acting on inaccurate raw AI predictions.
-- **Agronomist Portal**: Agronomists can log in, view raw AI data, verify the disease, customize recommendations, and confirm status as `REVIEWED`, unlocking the advisory.
+### JWT Expert Review & Auto-Release Workflow
+- **Roles**: `FARMER`, `AGRONOMIST`, `ADMIN` (passwords hashed via PBKDF2/SHA256, secured with mandatory `JWT_SECRET`).
+- **Auto-Release**: High-confidence predictions (confidence >= 0.70, configurable via `AUTO_APPROVE_CONFIDENCE_THRESHOLD`) are automatically approved and made available immediately to the farmer.
+- **Masking & Gating**: Low-confidence predictions (< 0.70) remain gated in `PENDING_REVIEW` with masked advisory details.
+- **Review Portal**: Both Agronomists and Admins can log in, view raw AI data, verify the diagnosis, customize recommendations, and confirm status as `REVIEWED`, unlocking the advisory.
 
 ### PDF Report Card Generation
 Provides `GET /predictions/{id}/pdf` generating custom PDF advisory sheets using `ReportLab`, complete with crop metadata, comparison before-after photographs, and verified agronomist treatment details.

@@ -8,7 +8,12 @@ from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
-SECRET_KEY = os.environ.get("JWT_SECRET", "krishiclinic-ai-default-jwt-secret-key-xyz-123456")
+SECRET_KEY = os.environ.get("JWT_SECRET")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "CRITICAL SECURITY ERROR: JWT_SECRET environment variable is not set. "
+        "A secure random JWT_SECRET must be configured in your environment."
+    )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440
 

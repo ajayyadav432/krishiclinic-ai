@@ -40,3 +40,6 @@ test.db
 backend/test.db
 *.csv
 .agents/
+*.pt
+backend/app/ai/weights/*.pt
+

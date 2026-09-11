@@ -92,7 +92,10 @@ async def test_get_prediction_not_found(client):
     assert response.status_code == 404
 
 @pytest.mark.asyncio
-async def test_agronomist_review_flow(client, sample_image):
+async def test_agronomist_review_flow(client, sample_image, monkeypatch):
+    from app.core.config import get_settings
+    monkeypatch.setattr(get_settings(), "AUTO_APPROVE_CONFIDENCE_THRESHOLD", 0.99)
+
     create_response = await client.post(
         "/api/v1/predictions",
         files={"image": ("test.jpg", io.BytesIO(sample_image), "image/jpeg")},
@@ -120,3 +123,86 @@ async def test_agronomist_review_flow(client, sample_image):
     assert detail_response_after.json()["status"] == "REVIEWED"
     assert detail_response_after.json()["predicted_disease"] == "Yellow Rust"
     assert detail_response_after.json()["recommendation"] == "Fungicide recommended immediately."
+
+@pytest.mark.asyncio
+async def test_auto_release_high_confidence(client, sample_image, monkeypatch):
+    from app.core.config import get_settings
+    monkeypatch.setattr(get_settings(), "AUTO_APPROVE_CONFIDENCE_THRESHOLD", 0.70)
+
+    create_response = await client.post(
+        "/api/v1/predictions",
+        files={"image": ("test.jpg", io.BytesIO(sample_image), "image/jpeg")},
+        data={"crop_type": "Wheat", "farmer_notes": "Rust spots"},
+    )
+    assert create_response.status_code == 201
+    pred_id = create_response.json()["id"]
+
+    detail_response = await client.get(f"/api/v1/predictions/{pred_id}")
+    assert detail_response.status_code == 200
+    data = detail_response.json()
+    assert data["status"] == "REVIEWED"
+    assert data["predicted_disease"] != "Pending Review"
+    assert data["confidence"] >= 0.70
+    assert data["reviewed_at"] is not None
+
+@pytest.mark.asyncio
+async def test_low_confidence_remains_gated(client, sample_image, monkeypatch):
+    from app.core.config import get_settings
+    monkeypatch.setattr(get_settings(), "AUTO_APPROVE_CONFIDENCE_THRESHOLD", 0.99)
+
+    create_response = await client.post(
+        "/api/v1/predictions",
+        files={"image": ("test.jpg", io.BytesIO(sample_image), "image/jpeg")},
+        data={"crop_type": "Wheat", "farmer_notes": "Rust spots"},
+    )
+    assert create_response.status_code == 201
+    pred_id = create_response.json()["id"]
+
+    detail_response = await client.get(f"/api/v1/predictions/{pred_id}")
+    assert detail_response.status_code == 200
+    data = detail_response.json()
+    assert data["status"] == "PENDING_REVIEW"
+    assert data["predicted_disease"] == "Pending Review"
+    assert data["confidence"] == 0.0
+
+@pytest.mark.asyncio
+async def test_admin_can_review_prediction(client, sample_image, monkeypatch):
+    import uuid
+    from app.main import app
+    from app.core.dependencies import get_current_agronomist
+    from app.models.user import User
+
+    from app.core.config import get_settings
+    monkeypatch.setattr(get_settings(), "AUTO_APPROVE_CONFIDENCE_THRESHOLD", 0.99)
+
+    create_response = await client.post(
+        "/api/v1/predictions",
+        files={"image": ("test.jpg", io.BytesIO(sample_image), "image/jpeg")},
+        data={"crop_type": "Wheat", "farmer_notes": "Rust spots"},
+    )
+    pred_id = create_response.json()["id"]
+
+    admin_user = User(
+        id=uuid.uuid4(),
+        username="test_admin",
+        password_hash="mock_hash",
+        role="ADMIN"
+    )
+    app.dependency_overrides[get_current_agronomist] = lambda: admin_user
+
+    try:
+        review_response = await client.post(
+            f"/api/v1/predictions/{pred_id}/review",
+            json={
+                "predicted_disease": "Yellow Rust",
+                "severity": "High",
+                "review": "Admin verified advisory."
+            }
+        )
+        assert review_response.status_code == 200
+        assert review_response.json()["status"] == "REVIEWED"
+        assert review_response.json()["agronomist_review"] == "Admin verified advisory."
+    finally:
+        from tests.conftest import override_get_current_agronomist
+        app.dependency_overrides[get_current_agronomist] = override_get_current_agronomist
+

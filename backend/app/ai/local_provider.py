@@ -109,7 +109,10 @@ class LocalPyTorchProvider(AIProvider):
                 hf_hub_download(repo_id=HF_REPO_ID, filename=METADATA_FILENAME, local_dir=str(self._weights_dir))
             except Exception as e:
                 logger.error(f"Failed to download model weights from Hugging Face Hub: {e}", exc_info=True)
-                raise RuntimeError(f"Failed to load model weights: {e}") from e
+                raise RuntimeError(
+                    f"Model weights not found in {self._weights_dir} and offline fallback download failed: {e}. "
+                    "Ensure weights (model.pt and metadata.json) are bundled in app/ai/weights at build time for zero-network operation."
+                ) from e
 
         with open(metadata_path, encoding="utf-8") as f:
             metadata = json.load(f)
