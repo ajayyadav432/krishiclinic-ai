@@ -913,6 +913,26 @@ h1, h2, h3, h4, h5, h6, .page-title, .sidebar-brand-name {
     align-items: flex-start !important;
     gap: 0.75rem !important;
   }
+
+  /* Agronomist portal: collapse split layout */
+  .agronomist-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* MedicineAdvisor: single column on mobile */
+  .medicine-fields-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Bottom nav bar for mobile */
+  .mobile-bottom-nav {
+    display: flex !important;
+  }
+
+  /* Extra padding for bottom nav */
+  .app-main {
+    padding-bottom: 64px;
+  }
 }
 
 

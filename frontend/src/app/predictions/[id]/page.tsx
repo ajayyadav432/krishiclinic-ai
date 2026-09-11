@@ -177,11 +177,21 @@ export default function PredictionDetailPage() {
       <div style={{ maxWidth: "800px", margin: "0 auto" }}>
         <div className="breadcrumb-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "0.75rem" }}>
           <Link href="/history" style={{ color: "var(--color-primary)", textDecoration: "none", fontSize: "0.875rem", fontWeight: 600 }}>
-            Back to History
+            ← {t("Back to History")}
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <AudioPlayer
-              text={`Crop: ${prediction.crop_type}. Diagnosis: ${transDisease || prediction.predicted_disease}. Severity: ${prediction.severity || "Standard"}. Treatment recommendation: ${transRecommendation || prediction.recommendation || "Consult local specialist"}.`}
+              text={
+                language === "hi"
+                  ? `फसल: ${t(prediction.crop_type)}। निदान: ${transDisease || t(prediction.predicted_disease)}। तीव्रता: ${t(prediction.severity || "")}। उपचार सलाह: ${transRecommendation || prediction.recommendation || "विशेषज्ञ से परामर्श करें"}।`
+                  : language === "te"
+                  ? `పంట: ${t(prediction.crop_type)}. నిర్ధారణ: ${transDisease || t(prediction.predicted_disease)}. తీవ్రత: ${t(prediction.severity || "")}. చికిత్స సలహా: ${transRecommendation || prediction.recommendation || "నిపుణులను సంప్రదించండి"}.`
+                  : language === "mr"
+                  ? `पीक: ${t(prediction.crop_type)}. निदान: ${transDisease || t(prediction.predicted_disease)}. तीव्रता: ${t(prediction.severity || "")}. उपचार सल्ला: ${transRecommendation || prediction.recommendation || "तज्ज्ञांचा सल्ला घ्या"}.`
+                  : language === "es"
+                  ? `Cultivo: ${t(prediction.crop_type)}. Diagnóstico: ${transDisease || t(prediction.predicted_disease)}. Severidad: ${t(prediction.severity || "")}. Recomendación: ${transRecommendation || prediction.recommendation || "Consulte a un especialista"}.`
+                  : `Crop: ${prediction.crop_type}. Diagnosis: ${transDisease || prediction.predicted_disease}. Severity: ${prediction.severity || "Standard"}. Treatment recommendation: ${transRecommendation || prediction.recommendation || "Consult local specialist"}.`
+              }
               language={language}
               label={t("Voice Advisory")}
             />
@@ -191,7 +201,7 @@ export default function PredictionDetailPage() {
                 try {
                   await downloadPdf(id);
                 } catch (e) {
-                  alert("Failed to download PDF advisory card");
+                  alert(t("Failed to download PDF advisory card"));
                 } finally {
                   setPdfLoading(false);
                 }
@@ -220,7 +230,7 @@ export default function PredictionDetailPage() {
               gap: "0.75rem",
             }}
           >
-            <span style={{ fontSize: "1.25rem" }}></span>
+            <span style={{ fontSize: "1.25rem" }}>ℹ️</span>
             <div>
               <strong>{t("Pending Review")}:</strong> {t("Our agronomist is currently reviewing this prediction. The diagnosis below is locked until verified.")}
             </div>
@@ -229,7 +239,7 @@ export default function PredictionDetailPage() {
 
         <div className="page-header">
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
-            <h1 className="page-title">{transDisease}</h1>
+            <h1 className="page-title">{transDisease || t(prediction.predicted_disease)}</h1>
             <SeverityBadge severity={prediction.severity} t={t} />
             <span
               className={`badge`}
@@ -352,7 +362,7 @@ export default function PredictionDetailPage() {
                  {prediction.status === "REVIEWED" ? t("Verified Advisory") : t("Treatment Recommendation")}
               </h3>
               <p style={{ color: "var(--color-text-secondary)", lineHeight: 1.7 }}>
-                {transRecommendation}
+                {transRecommendation || prediction.recommendation}
               </p>
             </div>
           )}
@@ -363,7 +373,7 @@ export default function PredictionDetailPage() {
                  {t("Farmer Notes")}
               </h3>
               <p style={{ color: "var(--color-text-secondary)", lineHeight: 1.7, fontStyle: "italic" }}>
-                &ldquo;{transNotes}&rdquo;
+                &ldquo;{transNotes || prediction.farmer_notes}&rdquo;
               </p>
             </div>
           )}

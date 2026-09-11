@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { listPredictions, reviewPrediction, getImageUrl } from "@/lib/api";
 import { useApp, Translate } from "@/context/AppContext";
 import type { Prediction } from "@/lib/types";
+import MedicineAdvisor from "@/components/MedicineAdvisor";
 
 export default function AgronomistPortal() {
   const { user, isInitialized, t } = useApp();
@@ -207,6 +208,19 @@ export default function AgronomistPortal() {
                     {statusMessage.text}
                   </div>
                 )}
+
+                {/* Medicine Advisor: auto-loads treatments for the crop under review */}
+                {(() => {
+                  const pred = predictions.find((p) => p.id === reviewingId);
+                  if (!pred) return null;
+                  return (
+                    <MedicineAdvisor
+                      cropType={pred.crop_type}
+                      detectedDisease={pred.predicted_disease}
+                      onApply={(text) => setReviewNotes(text)}
+                    />
+                  );
+                })()}
 
                 <form onSubmit={handleReviewSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
                   <div>

@@ -136,6 +136,68 @@ export default function Sidebar() {
           </div>
         )}
       </aside>
+
+      {/* Mobile bottom nav bar */}
+      <nav
+        className="mobile-bottom-nav"
+        style={{
+          display: "none",
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: "60px",
+          background: "var(--color-sidebar-bg)",
+          borderTop: "1px solid var(--color-border-light)",
+          zIndex: 45,
+          alignItems: "center",
+          justifyContent: "space-around",
+          boxShadow: "0 -2px 16px rgba(0,0,0,0.06)",
+        }}
+      >
+        {[
+          { href: "/", icon: "🏠", label: "Home" },
+          { href: "/history", icon: "📋", label: "Reports" },
+          { href: "/outbreak", icon: "📡", label: "Outbreak" },
+          { href: "/analytics", icon: "📊", label: "Analytics" },
+          ...(user?.role === "AGRONOMIST" || user?.role === "ADMIN"
+            ? [{ href: "/agronomist", icon: "👨‍⚕️", label: "Portal" }]
+            : []),
+        ].map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "2px",
+              textDecoration: "none",
+              flex: 1,
+              padding: "0.375rem 0",
+              borderRadius: "var(--radius-sm)",
+              background: isActive(item.href)
+                ? "var(--color-primary-bg)"
+                : "transparent",
+              transition: "all 0.15s",
+            }}
+          >
+            <span style={{ fontSize: "1.25rem" }}>{item.icon}</span>
+            <span
+              style={{
+                fontSize: "0.5625rem",
+                fontWeight: isActive(item.href) ? 700 : 500,
+                color: isActive(item.href)
+                  ? "var(--color-primary-dark)"
+                  : "var(--color-text-muted)",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {t(item.label)}
+            </span>
+          </Link>
+        ))}
+      </nav>
     </>
   );
 }
